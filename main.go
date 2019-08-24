@@ -132,6 +132,15 @@ func main() {
 	// TODO patch gocron to allow a per-scheduler timezone
 	gocron.ChangeLoc(time.UTC) // all timestamps are in UTC
 	scheduler := gocron.NewScheduler()
+
+	mockCtx := fasthttp.RequestCtx{}
+	requestcontext.SetDB(&mockCtx, db)
+	requestcontext.SetScheduler(&mockCtx, scheduler)
+	err = alarms.RestoreAlarmsFromDB(&mockCtx)
+	if err != nil {
+		log.Fatalf("error restoring db: %s", err)
+	}
+
 	middlewares := middlewareApplier(db, scheduler)
 
 	r := router.New()

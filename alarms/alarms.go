@@ -162,8 +162,52 @@ func HandlerDelete(ctx *fasthttp.RequestCtx) {
 
 func deleteAlarm(ctx *fasthttp.RequestCtx, id string) error {
 	// TODO figure out how to delete an alarm
+	// need to delete from db and scheduler
 	log.Errorf("should have deleted alarm %d but don't know how", id)
 	return errors.New("unimplemented")
+}
+
+// RestoreAlarmsFromDB restores alarms into the scheduler
+func RestoreAlarmsFromDB(ctx *fasthttp.RequestCtx) error {
+	db := requestcontext.DB(ctx)
+
+	// query example
+	rows, err := db.Query("select id, hour, minute, repeat, days from alarms")
+	if err != nil {
+		return errors.Wrap(err, "unable to query existing alarms")
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var id string
+		var hour int
+		var minute int
+		var repeat bool
+		var days string
+
+		err = rows.Scan(&id, &hour, &minute, &repeat, &days)
+		if err != nil {
+			return errors.Wrap(err, "unable to scan row")
+		}
+
+		daysSplit := strings.Split(days, ",")
+		alarm := Alarm{
+			ID: id,
+			Time: Time{
+				Hour:   hour,
+				Minute: minute,
+			},
+			Repeat: repeat,
+			Days:   daysSplit,
+		}
+		log.Infof("restoring alarm: %+v", alarm)
+		newAlarmCron(ctx, alarm)
+	}
+	err = rows.Err()
+	if err != nil {
+		return errors.Wrap(err, "error iterating over alarm query results")
+	}
+
+	return nil
 }
 
 var dayStrToTimeDay = map[string]time.Weekday{
