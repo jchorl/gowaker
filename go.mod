@@ -5,6 +5,7 @@ go 1.12
 require (
 	github.com/fasthttp/router v0.5.0 // indirect
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
+	github.com/google/uuid v1.1.1
 	github.com/jasonlvhit/gocron v0.0.0-20190807165158-02e46f9ad554
 	github.com/mattn/go-sqlite3 v1.11.0 // indirect
 	github.com/pkg/errors v0.8.1

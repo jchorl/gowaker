@@ -3,11 +3,11 @@ package alarms
 import (
 	"encoding/json"
 	"fmt"
-	"math/rand"
 	"strings"
 	"time"
 
 	log "github.com/golang/glog"
+	"github.com/google/uuid"
 	"github.com/pkg/errors"
 	"github.com/valyala/fasthttp"
 
@@ -16,7 +16,7 @@ import (
 )
 
 type Alarm struct {
-	ID      int       `json:"id"`
+	ID      string    `json:"id"`
 	Time    Time      `json:"time"`
 	Repeat  bool      `json:"repeat"`
 	Days    []string  `json:"days"`
@@ -51,9 +51,7 @@ func HandlerPost(ctx *fasthttp.RequestCtx) {
 }
 
 func newAlarm(ctx *fasthttp.RequestCtx, alarm Alarm) (Alarm, error) {
-	// TODO should really use uuids
-	rand.Seed(time.Now().UnixNano())
-	alarm.ID = rand.Int()
+	alarm.ID = uuid.New().String()
 
 	alarm = newAlarmCron(ctx, alarm)
 
@@ -66,6 +64,7 @@ func newAlarm(ctx *fasthttp.RequestCtx, alarm Alarm) (Alarm, error) {
 }
 
 func newAlarmCron(ctx *fasthttp.RequestCtx, alarm Alarm) Alarm {
+	// TODO patch gocron to allow tagging jobs
 	scheduler := requestcontext.Scheduler(ctx)
 	if !alarm.Repeat {
 		job := scheduler.
@@ -135,7 +134,9 @@ func HandlerGet(ctx *fasthttp.RequestCtx) {
 }
 
 func getAllAlarms(ctx *fasthttp.RequestCtx) ([]Alarm, error) {
+	// TODO patch gocron to allow for querying of all jobs
 	// use NextScheduledTime to populate when the job will next run
+	log.Infof("should fetch all alarms but cant right now")
 	return nil, errors.New("unimplemented")
 }
 
@@ -159,7 +160,7 @@ func HandlerDelete(ctx *fasthttp.RequestCtx) {
 	}
 }
 
-func deleteAlarm(ctx *fasthttp.RequestCtx, id int) error {
+func deleteAlarm(ctx *fasthttp.RequestCtx, id string) error {
 	// TODO figure out how to delete an alarm
 	log.Errorf("should have deleted alarm %d but don't know how", id)
 	return errors.New("unimplemented")

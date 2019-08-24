@@ -33,7 +33,7 @@ func initDB() (*sql.DB, error) {
 
 	sqlStmt = `
 	create table if not exists alarms (
-		id int not null primary key,
+		id text not null primary key,
 		hour int not null,
 		minute int not null,
 		repeat bool not null,
@@ -129,6 +129,7 @@ func main() {
 	}
 	defer db.Close()
 
+	// TODO patch gocron to allow a per-scheduler timezone
 	gocron.ChangeLoc(time.UTC) // all timestamps are in UTC
 	scheduler := gocron.NewScheduler()
 	middlewares := middlewareApplier(db, scheduler)
