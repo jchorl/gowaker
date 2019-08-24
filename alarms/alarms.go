@@ -66,17 +66,13 @@ func newAlarm(ctx *fasthttp.RequestCtx, alarm Alarm) (Alarm, error) {
 }
 
 func newAlarmCron(ctx *fasthttp.RequestCtx, alarm Alarm) Alarm {
-	// gocron takes times in whatever the machine is using
-	goTime := time.Date(2019, 8, 24, alarm.Time.Hour, alarm.Time.Minute, 0, 0, time.UTC)
-	goTime = goTime.Local()
-
 	scheduler := requestcontext.Scheduler(ctx)
 	if !alarm.Repeat {
 		job := scheduler.
 			Every(1).
 			Day().
 			At(
-				fmt.Sprintf("%d:%d", goTime.Hour(), goTime.Minute()),
+				fmt.Sprintf("%d:%d", alarm.Time.Hour, alarm.Time.Minute),
 			)
 
 		job.Do(alarmrun.AlarmRunOnce)
@@ -88,7 +84,7 @@ func newAlarmCron(ctx *fasthttp.RequestCtx, alarm Alarm) Alarm {
 				Every(1).
 				Weekday(dayStrToTimeDay[day]).
 				At(
-					fmt.Sprintf("%d:%d", goTime.Hour(), goTime.Minute()),
+					fmt.Sprintf("%d:%d", alarm.Time.Hour, alarm.Time.Minute),
 				)
 
 			job.Do(alarmrun.AlarmRun)

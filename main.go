@@ -129,6 +129,7 @@ func main() {
 	}
 	defer db.Close()
 
+	gocron.ChangeLoc(time.UTC) // all timestamps are in UTC
 	scheduler := gocron.NewScheduler()
 	middlewares := middlewareApplier(db, scheduler)
 
