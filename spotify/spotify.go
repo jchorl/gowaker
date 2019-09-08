@@ -167,8 +167,7 @@ func HandlerSearch(ctx *fasthttp.RequestCtx) {
 }
 
 func HandlerDevices(ctx *fasthttp.RequestCtx) {
-	spotifyClient := requestcontext.Spotify(ctx)
-	devices, err := spotifyClient.PlayerDevices()
+	devices, err := GetDevices(ctx)
 	if err != nil {
 		err = errors.Wrap(err, "error fetching devices from spotify")
 		log.Error(err)
@@ -178,4 +177,14 @@ func HandlerDevices(ctx *fasthttp.RequestCtx) {
 
 	ctx.Response.SetStatusCode(fasthttp.StatusOK)
 	json.NewEncoder(ctx).Encode(devices)
+}
+
+func GetDevices(ctx *fasthttp.RequestCtx) ([]spotify.PlayerDevice, error) {
+	spotifyClient := requestcontext.Spotify(ctx)
+	devices, err := spotifyClient.PlayerDevices()
+	if err != nil {
+		return nil, errors.Wrap("error fetching devices from spotify")
+	}
+
+	return devices, nil
 }
