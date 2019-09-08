@@ -11,9 +11,11 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/pkg/errors"
 	"github.com/valyala/fasthttp"
+	upstreamspotify "github.com/zmb3/spotify"
 
 	"github.com/jchorl/gowaker/alarms"
 	"github.com/jchorl/gowaker/requestcontext"
+	"github.com/jchorl/gowaker/spotify"
 )
 
 func initDB() (*sql.DB, error) {
@@ -23,21 +25,16 @@ func initDB() (*sql.DB, error) {
 	}
 
 	sqlStmt := `
-	create table if not exists spotify_config (key text not null primary key, value text not null);
-	`
-	_, err = db.Exec(sqlStmt)
-	if err != nil {
-		err = errors.Wrapf(err, "error executing sql statement: %s", sqlStmt)
-		return nil, err
-	}
-
-	sqlStmt = `
 	create table if not exists alarms (
 		id text not null primary key,
 		hour int not null,
 		minute int not null,
 		repeat bool not null,
 		days string -- csv of days to repeat
+	);
+	create table if not exists spotify_config (
+		key text not null primary key,
+		value text not null
 	);
 	`
 	_, err = db.Exec(sqlStmt)
@@ -108,12 +105,22 @@ func schedulerMiddleware(handler fasthttp.RequestHandler, scheduler *gocron.Sche
 	}
 }
 
-func middlewareApplier(db *sql.DB, scheduler *gocron.Scheduler) func(fasthttp.RequestHandler) fasthttp.RequestHandler {
+func spotifyMiddleware(handler fasthttp.RequestHandler, client *upstreamspotify.Client) fasthttp.RequestHandler {
+	return func(ctx *fasthttp.RequestCtx) {
+		requestcontext.SetSpotify(ctx, client)
+		handler(ctx)
+	}
+}
+
+func middlewareApplier(db *sql.DB, spotifyClient *upstreamspotify.Client, scheduler *gocron.Scheduler) func(fasthttp.RequestHandler) fasthttp.RequestHandler {
 	return func(handler fasthttp.RequestHandler) fasthttp.RequestHandler {
 		return dbMiddleware(
-			schedulerMiddleware(
-				handler,
-				scheduler,
+			spotifyMiddleware(
+				schedulerMiddleware(
+					handler,
+					scheduler,
+				),
+				spotifyClient,
 			),
 			db,
 		)
@@ -141,12 +148,21 @@ func main() {
 		log.Fatalf("error restoring db: %s", err)
 	}
 
-	middlewares := middlewareApplier(db, scheduler)
+	// TODO fill in a spotify client
+	middlewares := middlewareApplier(db, nil, scheduler)
 
 	r := router.New()
 	r.GET("/alarms", middlewares(alarms.HandlerGet))
 	r.DELETE("/alarms", middlewares(alarms.HandlerDelete))
 	r.POST("/alarms", middlewares(alarms.HandlerPost))
+
+	r.GET("/spotify/playlists", middlewares(spotify.HandlerGetPlaylists))
+	r.GET("/spotify/default_playlist", middlewares(spotify.HandlerGetDefaultPlaylist))
+	r.PUT("/spotify/default_playlist", middlewares(spotify.HandlerSetDefaultPlaylist))
+	r.GET("/spotify/next_wakeup_song", middlewares(spotify.HandlerGetNextWakeupSong))
+	r.PUT("/spotify/next_wakeup_song", middlewares(spotify.HandlerSetNextWakeupSong))
+	r.GET("/spotify/search", middlewares(spotify.HandlerSearch))
+	r.GET("/spotify/devices", middlewares(spotify.HandlerDevices))
 
 	serverDone := make(chan struct{})
 	go func() {

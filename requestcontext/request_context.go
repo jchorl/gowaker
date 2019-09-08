@@ -5,6 +5,7 @@ import (
 
 	"github.com/jasonlvhit/gocron"
 	"github.com/valyala/fasthttp"
+	"github.com/zmb3/spotify"
 )
 
 const (
@@ -35,4 +36,14 @@ func SetScheduler(ctx *fasthttp.RequestCtx, scheduler *gocron.Scheduler) {
 
 func Scheduler(ctx *fasthttp.RequestCtx) *gocron.Scheduler {
 	return ctx.UserValue(schedulerKey).(*gocron.Scheduler)
+}
+
+const spotifyKey = "spotify"
+
+func SetSpotify(ctx *fasthttp.RequestCtx, client *spotify.Client) {
+	ctx.SetUserValue(spotifyKey, client)
+}
+
+func Spotify(ctx *fasthttp.RequestCtx) *spotify.Client {
+	return ctx.UserValue(spotifyKey).(*spotify.Client)
 }
