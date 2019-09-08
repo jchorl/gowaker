@@ -78,7 +78,10 @@ func newAlarmCron(ctx *fasthttp.RequestCtx, alarm Alarm) Alarm {
 			).
 			Tag(jobTag("id", alarm.ID), jobTag("type", alarmCronType))
 
-		job.Do(alarmrun.AlarmRunOnce)
+		job.Do(func() {
+			alarmrun.AlarmRun()
+			scheduler.RemoveByRef(job)
+		})
 		alarm.NextRun = job.NextScheduledTime()
 	} else {
 		// create an alarm for each day it should run
