@@ -3,6 +3,7 @@ package alarms
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/valyala/fasthttp"
 
+	"github.com/jasonlvhit/gocron"
 	"github.com/jchorl/gowaker/alarmrun"
 	"github.com/jchorl/gowaker/requestcontext"
 )
@@ -27,6 +29,8 @@ type Time struct {
 	Hour   int `json:"hour"`
 	Minute int `json:"minute"`
 }
+
+const alarmCronType = "alarm"
 
 func HandlerPost(ctx *fasthttp.RequestCtx) {
 	alarm := Alarm{}
@@ -64,7 +68,6 @@ func newAlarm(ctx *fasthttp.RequestCtx, alarm Alarm) (Alarm, error) {
 }
 
 func newAlarmCron(ctx *fasthttp.RequestCtx, alarm Alarm) Alarm {
-	// TODO patch gocron to allow tagging jobs
 	scheduler := requestcontext.Scheduler(ctx)
 	if !alarm.Repeat {
 		job := scheduler.
@@ -72,7 +75,8 @@ func newAlarmCron(ctx *fasthttp.RequestCtx, alarm Alarm) Alarm {
 			Day().
 			At(
 				fmt.Sprintf("%d:%d", alarm.Time.Hour, alarm.Time.Minute),
-			)
+			).
+			Tag(jobTag("id", alarm.ID), jobTag("type", alarmCronType))
 
 		job.Do(alarmrun.AlarmRunOnce)
 		alarm.NextRun = job.NextScheduledTime()
@@ -84,7 +88,8 @@ func newAlarmCron(ctx *fasthttp.RequestCtx, alarm Alarm) Alarm {
 				Weekday(dayStrToTimeDay[day]).
 				At(
 					fmt.Sprintf("%d:%d", alarm.Time.Hour, alarm.Time.Minute),
-				)
+				).
+				Tag(jobTag("id", alarm.ID), jobTag("type", alarmCronType))
 
 			job.Do(alarmrun.AlarmRun)
 
@@ -121,23 +126,60 @@ func newAlarmDB(ctx *fasthttp.RequestCtx, alarm Alarm) error {
 }
 
 func HandlerGet(ctx *fasthttp.RequestCtx) {
-	alarms, err := getAllAlarms(ctx)
-	if err != nil {
-		err = errors.Wrap(err, "error getting all alarms")
-		log.Error(err)
-		ctx.Error(err.Error(), fasthttp.StatusBadRequest)
-		return
+	scheduler := requestcontext.Scheduler(ctx)
+	allJobs := scheduler.Jobs()
+
+	groupedByID := map[string][]*gocron.Job{}
+	for _, job := range allJobs {
+		jobType := getJobTagValue(job, "type")
+		if jobType != alarmCronType {
+			continue
+		}
+
+		jobID := getJobTagValue(job, "id")
+		groupedByID[jobID] = append(groupedByID[jobID], job)
+	}
+
+	alarms := []Alarm{}
+	for jobID, jobs := range groupedByID {
+		// for the time, just take the first job, they should all be the same
+		sample := jobs[0]
+		timeStr := sample.GetAt()
+		timeStrSplit := strings.Split(timeStr, ":")
+		hour, _ := strconv.Atoi(timeStrSplit[0])
+		minute, _ := strconv.Atoi(timeStrSplit[1])
+
+		alarm := Alarm{
+			ID: jobID,
+			Time: Time{
+				Hour:   hour,
+				Minute: minute,
+			},
+		}
+
+		if len(jobs) == 1 {
+			alarm.NextRun = jobs[0].NextScheduledTime()
+		} else {
+			alarm.Repeat = true
+
+			for _, job := range jobs {
+				alarm.Days = append(
+					alarm.Days,
+					strings.ToLower(job.GetWeekday().String()),
+				)
+
+				thisNextTime := job.NextScheduledTime()
+				if alarm.NextRun.Equal(time.Time{}) || thisNextTime.Before(alarm.NextRun) {
+					alarm.NextRun = thisNextTime
+				}
+			}
+		}
+
+		alarms = append(alarms, alarm)
 	}
 
 	ctx.Response.SetStatusCode(fasthttp.StatusOK)
 	json.NewEncoder(ctx).Encode(alarms)
-}
-
-func getAllAlarms(ctx *fasthttp.RequestCtx) ([]Alarm, error) {
-	// TODO patch gocron to allow for querying of all jobs
-	// use NextScheduledTime to populate when the job will next run
-	log.Infof("should fetch all alarms but cant right now")
-	return nil, errors.New("unimplemented")
 }
 
 func HandlerDelete(ctx *fasthttp.RequestCtx) {
@@ -218,4 +260,19 @@ var dayStrToTimeDay = map[string]time.Weekday{
 	"thursday":  time.Thursday,
 	"friday":    time.Friday,
 	"saturday":  time.Saturday,
+}
+
+func jobTag(key, value string) string {
+	return fmt.Sprintf("%s:%s", key, value)
+}
+
+func getJobTagValue(job *gocron.Job, key string) string {
+	for _, tag := range job.GetAllTags() {
+		sp := strings.Split(tag, ":")
+		if sp[0] == key && len(sp) == 2 {
+			return sp[1]
+		}
+	}
+
+	return ""
 }
