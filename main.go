@@ -8,6 +8,7 @@ import (
 	"github.com/fasthttp/router"
 	log "github.com/golang/glog"
 	"github.com/jasonlvhit/gocron"
+	"github.com/jchorl/watchdog"
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/pkg/errors"
 	"github.com/valyala/fasthttp"
@@ -136,9 +137,12 @@ func main() {
 	}
 	defer db.Close()
 
-	// TODO patch gocron to allow a per-scheduler timezone
-	gocron.ChangeLoc(time.UTC) // all timestamps are in UTC
 	scheduler := gocron.NewScheduler()
+	scheduler.ChangeLoc(time.UTC) // all timestamps are in UTC
+	scheduler.Every(1).Hour().Tag("watchdog").Do(func() {
+		wdClient := watchdog.Client{Domain: "https://watchdog.joshchorlton.com"}
+		wdClient.Ping("waker", watchdog.Watch_DAILY)
+	})
 
 	mockCtx := fasthttp.RequestCtx{}
 	requestcontext.SetDB(&mockCtx, db)
