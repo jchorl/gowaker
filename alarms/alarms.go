@@ -203,10 +203,32 @@ func HandlerDelete(ctx *fasthttp.RequestCtx) {
 }
 
 func deleteAlarm(ctx *fasthttp.RequestCtx, id string) error {
-	// TODO figure out how to delete an alarm
-	// need to delete from db and scheduler
-	log.Errorf("should have deleted alarm %d but don't know how", id)
-	return errors.New("unimplemented")
+	scheduler := requestcontext.Scheduler(ctx)
+
+	stmt, err := db.Prepare(`delete from alarms where id = ?`)
+	if err != nil {
+		return errors.Wrap(err, "error preparing alarm delete stmt")
+	}
+	defer stmt.Close()
+	_, err = stmt.Exec(alarm.ID)
+	if err != nil {
+		return errors.Wrap(err, "error executing alarm delete stmt")
+	}
+
+	allJobs := scheduler.Jobs()
+	for _, job := range allJobs {
+		jobType := getJobTagValue(job, "type")
+		if jobType != alarmCronType {
+			continue
+		}
+
+		jobID := getJobTagValue(job, "id")
+		if jobID == id {
+			scheduler.RemoveByRef(job)
+		}
+	}
+
+	return nil
 }
 
 // RestoreAlarmsFromDB restores alarms into the scheduler
