@@ -14,11 +14,12 @@ import (
 const defaultPlaylistKey = "default_playlist"
 const nextWakeupSongKey = "next_wakeup_song"
 
-// TODO figure out how to use a service account to get a spotify client with
-// ScopePlaylistReadCollaborative
-// spotify.ScopePlaylistReadPrivate
-// spotify.ScopeUserReadPlaybackState
-// spotify.ScopeUserModifyPlaybackState
+var RequiredScopes = []string{
+	spotify.ScopePlaylistReadCollaborative,
+	spotify.ScopePlaylistReadPrivate,
+	spotify.ScopeUserReadPlaybackState,
+	spotify.ScopeUserModifyPlaybackState,
+}
 
 func HandlerGetPlaylists(ctx *fasthttp.RequestCtx) {
 	spotifyClient := requestcontext.Spotify(ctx)

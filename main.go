@@ -1,8 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"database/sql"
 	"flag"
+	"fmt"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/fasthttp/router"
@@ -45,51 +49,6 @@ func initDB() (*sql.DB, error) {
 	}
 
 	return db, nil
-
-	// insert example
-	// stmt, err := db.Prepare("insert into foo(id, name) values(?, ?)")
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// defer stmt.Close()
-	// _, err = stmt.Exec(i, "hello", i))
-	// 	if err != nil {
-	// 		log.Fatal(err)
-	// 	}
-	// }
-
-	// query example
-	// rows, err := db.Query("select id, name from foo")
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// defer rows.Close()
-	// for rows.Next() {
-	// 	var id int
-	// 	var name string
-	// 	err = rows.Scan(&id, &name)
-	// 	if err != nil {
-	// 		log.Fatal(err)
-	// 	}
-	// 	fmt.Println(id, name)
-	// }
-	// err = rows.Err()
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-
-	// get by ID example
-	// stmt, err = db.Prepare("select name from foo where id = ?")
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// defer stmt.Close()
-	// var name string
-	// err = stmt.QueryRow("3").Scan(&name)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// fmt.Println(name)
 }
 
 func dbMiddleware(handler fasthttp.RequestHandler, db *sql.DB) fasthttp.RequestHandler {
@@ -154,8 +113,22 @@ func main() {
 		log.Fatalf("error restoring db: %s", err)
 	}
 
-	// TODO fill in a spotify client
-	middlewares := middlewareApplier(db, nil, scheduler)
+	auth := upstreamspotify.NewAuthenticator("http://localhost:5000/spotify/auth", spotify.RequiredScopes...)
+	url := auth.AuthURL("")
+	fmt.Printf("Visit %s and OAuth\n", url)
+	fmt.Print("Enter code: ")
+	reader := bufio.NewReader(os.Stdin)
+	code, err := reader.ReadString('\n')
+	if err != nil {
+		log.Fatalf("getting code: %s", err)
+	}
+	token, err := auth.Exchange(strings.TrimSpace(code))
+	if err != nil {
+		log.Fatalf("getting spotify token: %s", err)
+	}
+	spotifyClient := auth.NewClient(token)
+
+	middlewares := middlewareApplier(db, &spotifyClient, scheduler)
 
 	r := router.New()
 	r.GET("/alarms", middlewares(alarms.HandlerGet))
