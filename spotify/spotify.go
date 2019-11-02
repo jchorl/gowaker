@@ -1,12 +1,17 @@
 package spotify
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"strings"
 
 	log "github.com/golang/glog"
 	"github.com/valyala/fasthttp"
 	"github.com/zmb3/spotify"
+	"golang.org/x/oauth2"
 
 	"github.com/jchorl/gowaker/requestcontext"
 )
@@ -14,7 +19,7 @@ import (
 const defaultPlaylistKey = "default_playlist"
 const nextWakeupSongKey = "next_wakeup_song"
 
-var RequiredScopes = []string{
+var requiredScopes = []string{
 	spotify.ScopePlaylistReadCollaborative,
 	spotify.ScopePlaylistReadPrivate,
 	spotify.ScopeUserReadPlaybackState,
@@ -187,4 +192,46 @@ func GetDevices(ctx *fasthttp.RequestCtx) ([]spotify.PlayerDevice, error) {
 	}
 
 	return devices, nil
+}
+
+func New() (*spotify.Client, error) {
+	auth := spotify.NewAuthenticator("http://localhost:5000/spotify/auth", requiredScopes...)
+
+	bts, err := ioutil.ReadFile("./spotifycreds.json")
+	// the no error cases is the exception, it means creds are cached
+	if err == nil {
+		var token *oauth2.Token
+		err = json.Unmarshal(bts, token)
+		if err != nil {
+			return nil, fmt.Errorf("unmarshaling cached creds, delete ./spotifycreds.json and try again: %w", err)
+		}
+
+		client := auth.NewClient(token)
+		return &client, nil
+	}
+
+	log.Infof("reading spotifycreds.json: %s", err)
+
+	url := auth.AuthURL("")
+	fmt.Printf("Visit %s and OAuth\n", url)
+	fmt.Print("Enter code: ")
+	reader := bufio.NewReader(os.Stdin)
+	code, _ := reader.ReadString('\n')
+	token, err := auth.Exchange(strings.TrimSpace(code))
+	if err != nil {
+		return nil, fmt.Errorf("getting spotify token: %w", err)
+	}
+
+	encodedToken, err := json.Marshal(&token)
+	if err != nil {
+		return nil, fmt.Errorf("marshaling spotify token: %w", err)
+	}
+
+	err = ioutil.WriteFile("./spotifycreds.json", encodedToken, 0600)
+	if err != nil {
+		return nil, fmt.Errorf("saving spotify token: %w", err)
+	}
+
+	client := auth.NewClient(token)
+	return &client, nil
 }

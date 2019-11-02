@@ -1,12 +1,8 @@
 package main
 
 import (
-	"bufio"
 	"database/sql"
 	"flag"
-	"fmt"
-	"os"
-	"strings"
 	"time"
 
 	"github.com/fasthttp/router"
@@ -113,19 +109,9 @@ func main() {
 		log.Fatalf("error restoring db: %s", err)
 	}
 
-	auth := upstreamspotify.NewAuthenticator("http://localhost:5000/spotify/auth", spotify.RequiredScopes...)
-	url := auth.AuthURL("")
-	fmt.Printf("Visit %s and OAuth\n", url)
-	fmt.Print("Enter code: ")
-	reader := bufio.NewReader(os.Stdin)
-	code, _ := reader.ReadString('\n')
-	token, err := auth.Exchange(strings.TrimSpace(code))
-	if err != nil {
-		log.Fatalf("getting spotify token: %s", err)
-	}
-	spotifyClient := auth.NewClient(token)
+	spotifyClient, err := spotify.New()
 
-	middlewares := middlewareApplier(db, &spotifyClient, scheduler)
+	middlewares := middlewareApplier(db, spotifyClient, scheduler)
 
 	r := router.New()
 	r.GET("/alarms", middlewares(alarms.HandlerGet))
