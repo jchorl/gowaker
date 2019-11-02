@@ -118,10 +118,7 @@ func main() {
 	fmt.Printf("Visit %s and OAuth\n", url)
 	fmt.Print("Enter code: ")
 	reader := bufio.NewReader(os.Stdin)
-	code, err := reader.ReadString('\n')
-	if err != nil {
-		log.Fatalf("getting code: %s", err)
-	}
+	code, _ := reader.ReadString('\n')
 	token, err := auth.Exchange(strings.TrimSpace(code))
 	if err != nil {
 		log.Fatalf("getting spotify token: %s", err)

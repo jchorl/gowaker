@@ -5,4 +5,4 @@ serve:
 		--env-file $(PWD)/secrets.list \
 		-w /gowaker \
 		golang:1.13 \
-		go run main.go
+		go run main.go --logtostderr
