@@ -1,11 +1,11 @@
 package alarmrun
 
 import (
+	"fmt"
 	"os/exec"
 	"time"
 
 	log "github.com/golang/glog"
-	"github.com/pkg/errors"
 	"github.com/valyala/fasthttp"
 
 	"github.com/jchorl/gowaker/config"
@@ -16,14 +16,12 @@ func AlarmRun(ctx *fasthttp.RequestCtx) error {
 	log.Infof("running job at %s", time.Now())
 	err := setVolume()
 	if err != nil {
-		err = errors.Wrap(err, "error setting volume")
 		log.Error(err)
 		return err
 	}
 
 	err = playSong(ctx)
 	if err != nil {
-		err = errors.Wrap(err, "error playing song")
 		log.Error(err)
 		return err
 	}
@@ -36,13 +34,13 @@ func setVolume() error {
 	cmd := exec.Command("amixer", "sset", "DAC", "100%")
 	err := cmd.Run()
 	if err != nil {
-		return err
+		return fmt.Errorf("setting volume on DAC: %w", err)
 	}
 
-	cmd := exec.Command("amixer", "sset", "Line Out", "100%")
-	err := cmd.Run()
+	cmd = exec.Command("amixer", "sset", "Line Out", "100%")
+	err = cmd.Run()
 	if err != nil {
-		return err
+		return fmt.Errorf("setting volume on Line Out: %w", err)
 	}
 	return nil
 }
@@ -58,4 +56,6 @@ func playSong(ctx *fasthttp.RequestCtx) error {
 			// TODO this
 		}
 	}
+
+	return nil
 }

@@ -9,7 +9,6 @@ import (
 
 	log "github.com/golang/glog"
 	"github.com/google/uuid"
-	"github.com/pkg/errors"
 	"github.com/valyala/fasthttp"
 
 	"github.com/jasonlvhit/gocron"
@@ -36,7 +35,7 @@ func HandlerPost(ctx *fasthttp.RequestCtx) {
 	alarm := Alarm{}
 	err := json.Unmarshal(ctx.Request.Body(), &alarm)
 	if err != nil {
-		err = errors.Wrap(err, "error decoding body")
+		err = fmt.Errorf("decoding body: %w", err)
 		log.Error(err)
 		ctx.Error(err.Error(), fasthttp.StatusBadRequest)
 		return
@@ -44,7 +43,7 @@ func HandlerPost(ctx *fasthttp.RequestCtx) {
 
 	alarm, err = newAlarm(ctx, alarm)
 	if err != nil {
-		err = errors.Wrap(err, "error creating new alarm")
+		err = fmt.Errorf("creating new alarm: %w", err)
 		log.Error(err)
 		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
 		return
@@ -75,11 +74,12 @@ func newAlarmCron(ctx *fasthttp.RequestCtx, alarm Alarm) Alarm {
 			Day().
 			At(
 				fmt.Sprintf("%d:%d", alarm.Time.Hour, alarm.Time.Minute),
-			).
-			Tag(jobTag("id", alarm.ID), jobTag("type", alarmCronType))
+			)
+
+		job.Tag(jobTag("id", alarm.ID), jobTag("type", alarmCronType))
 
 		job.Do(func() {
-			alarmrun.AlarmRun()
+			alarmrun.AlarmRun(ctx)
 			scheduler.RemoveByRef(job)
 		})
 		alarm.NextRun = job.NextScheduledTime()
@@ -91,8 +91,9 @@ func newAlarmCron(ctx *fasthttp.RequestCtx, alarm Alarm) Alarm {
 				Weekday(dayStrToTimeDay[day]).
 				At(
 					fmt.Sprintf("%d:%d", alarm.Time.Hour, alarm.Time.Minute),
-				).
-				Tag(jobTag("id", alarm.ID), jobTag("type", alarmCronType))
+				)
+
+			job.Tag(jobTag("id", alarm.ID), jobTag("type", alarmCronType))
 
 			job.Do(alarmrun.AlarmRun)
 
@@ -117,12 +118,12 @@ func newAlarmDB(ctx *fasthttp.RequestCtx, alarm Alarm) error {
 	`,
 	)
 	if err != nil {
-		return errors.Wrap(err, "error preparing alarm insert stmt")
+		return fmt.Errorf("preparing alarm insert stmt: %w", err)
 	}
 	defer stmt.Close()
 	_, err = stmt.Exec(alarm.ID, alarm.Time.Hour, alarm.Time.Minute, alarm.Repeat, daysCSV)
 	if err != nil {
-		return errors.Wrap(err, "error executing alarm insert stmt")
+		return fmt.Errorf("executing alarm insert stmt: %w", err)
 	}
 
 	return nil
@@ -190,7 +191,7 @@ func HandlerDelete(ctx *fasthttp.RequestCtx) {
 	alarm := Alarm{}
 	err := json.Unmarshal(ctx.Request.Body(), &alarm)
 	if err != nil {
-		err = errors.Wrap(err, "error decoding body")
+		err = fmt.Errorf("decoding body: %w", err)
 		log.Error(err)
 		ctx.Error(err.Error(), fasthttp.StatusBadRequest)
 		return
@@ -198,7 +199,7 @@ func HandlerDelete(ctx *fasthttp.RequestCtx) {
 
 	err = deleteAlarm(ctx, alarm.ID)
 	if err != nil {
-		err = errors.Wrap(err, "error deleting alarm")
+		err = fmt.Errorf("deleting alarm: %w", err)
 		log.Error(err)
 		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
 		return
@@ -206,16 +207,17 @@ func HandlerDelete(ctx *fasthttp.RequestCtx) {
 }
 
 func deleteAlarm(ctx *fasthttp.RequestCtx, id string) error {
+	db := requestcontext.DB(ctx)
 	scheduler := requestcontext.Scheduler(ctx)
 
 	stmt, err := db.Prepare(`delete from alarms where id = ?`)
 	if err != nil {
-		return errors.Wrap(err, "error preparing alarm delete stmt")
+		return fmt.Errorf("preparing alarm delete stmt: %w", err)
 	}
 	defer stmt.Close()
-	_, err = stmt.Exec(alarm.ID)
+	_, err = stmt.Exec(id)
 	if err != nil {
-		return errors.Wrap(err, "error executing alarm delete stmt")
+		return fmt.Errorf("executing alarm delete stmt: %w", err)
 	}
 
 	allJobs := scheduler.Jobs()
@@ -241,7 +243,7 @@ func RestoreAlarmsFromDB(ctx *fasthttp.RequestCtx) error {
 	// query example
 	rows, err := db.Query("select id, hour, minute, repeat, days from alarms")
 	if err != nil {
-		return errors.Wrap(err, "unable to query existing alarms")
+		return fmt.Errorf("querying existing alarms: %w", err)
 	}
 	defer rows.Close()
 	for rows.Next() {
@@ -253,7 +255,7 @@ func RestoreAlarmsFromDB(ctx *fasthttp.RequestCtx) error {
 
 		err = rows.Scan(&id, &hour, &minute, &repeat, &days)
 		if err != nil {
-			return errors.Wrap(err, "unable to scan row")
+			return fmt.Errorf("scanning row: %w", err)
 		}
 
 		daysSplit := strings.Split(days, ",")
@@ -271,7 +273,7 @@ func RestoreAlarmsFromDB(ctx *fasthttp.RequestCtx) error {
 	}
 	err = rows.Err()
 	if err != nil {
-		return errors.Wrap(err, "error iterating over alarm query results")
+		return fmt.Errorf("iterating over alarm query results: %w", err)
 	}
 
 	return nil
@@ -292,7 +294,7 @@ func jobTag(key, value string) string {
 }
 
 func getJobTagValue(job *gocron.Job, key string) string {
-	for _, tag := range job.GetAllTags() {
+	for _, tag := range job.Tags() {
 		sp := strings.Split(tag, ":")
 		if sp[0] == key && len(sp) == 2 {
 			return sp[1]

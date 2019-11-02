@@ -139,7 +139,9 @@ func main() {
 
 	scheduler := gocron.NewScheduler()
 	scheduler.ChangeLoc(time.UTC) // all timestamps are in UTC
-	scheduler.Every(1).Hour().Tag("watchdog").Do(func() {
+	job := scheduler.Every(1).Hour()
+	job.Tag("watchdog")
+	job.Do(func() {
 		wdClient := watchdog.Client{Domain: "https://watchdog.joshchorlton.com"}
 		wdClient.Ping("waker", watchdog.Watch_DAILY)
 	})

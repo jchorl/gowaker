@@ -2,9 +2,9 @@ package spotify
 
 import (
 	"encoding/json"
+	"fmt"
 
 	log "github.com/golang/glog"
-	"github.com/pkg/errors"
 	"github.com/valyala/fasthttp"
 	"github.com/zmb3/spotify"
 
@@ -24,7 +24,7 @@ func HandlerGetPlaylists(ctx *fasthttp.RequestCtx) {
 	spotifyClient := requestcontext.Spotify(ctx)
 	playlistPage, err := spotifyClient.CurrentUsersPlaylists()
 	if err != nil {
-		err = errors.Wrap(err, "error retrieving spotify playlists")
+		err = fmt.Errorf("retrieving spotify playlists: %w", err)
 		log.Error(err)
 		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
 		return
@@ -40,7 +40,7 @@ func HandlerGetDefaultPlaylist(ctx *fasthttp.RequestCtx) {
 
 	stmt, err := db.Prepare("select value from spotify_config where key = ?")
 	if err != nil {
-		err = errors.Wrap(err, "error retrieving default spotify playlist")
+		err = fmt.Errorf("retrieving default spotify playlist: %w", err)
 		log.Error(err)
 		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
 		return
@@ -50,7 +50,7 @@ func HandlerGetDefaultPlaylist(ctx *fasthttp.RequestCtx) {
 	var playlistID string
 	err = stmt.QueryRow(defaultPlaylistKey).Scan(&playlistID)
 	if err != nil {
-		err = errors.Wrap(err, "error querying/scanning default playlist")
+		err = fmt.Errorf("querying/scanning default playlist: %w", err)
 		log.Error(err)
 		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
 		return
@@ -58,7 +58,7 @@ func HandlerGetDefaultPlaylist(ctx *fasthttp.RequestCtx) {
 
 	playlist, err := spotifyClient.GetPlaylist(spotify.ID(playlistID))
 	if err != nil {
-		err = errors.Wrap(err, "error fetching playlist details from spotify")
+		err = fmt.Errorf("fetching playlist details from spotify: %w", err)
 		log.Error(err)
 		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
 		return
@@ -72,7 +72,7 @@ func HandlerSetDefaultPlaylist(ctx *fasthttp.RequestCtx) {
 	playlist := spotify.SimplePlaylist{}
 	err := json.Unmarshal(ctx.Request.Body(), &playlist)
 	if err != nil {
-		err = errors.Wrap(err, "error decoding body")
+		err = fmt.Errorf("decoding body: %w", err)
 		log.Error(err)
 		ctx.Error(err.Error(), fasthttp.StatusBadRequest)
 		return
@@ -89,7 +89,7 @@ func HandlerGetNextWakeupSong(ctx *fasthttp.RequestCtx) {
 
 	stmt, err := db.Prepare("select value from spotify_config where key = ?")
 	if err != nil {
-		err = errors.Wrap(err, "error retrieving next wakeup song")
+		err = fmt.Errorf("retrieving next wakeup song: %w", err)
 		log.Error(err)
 		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
 		return
@@ -99,7 +99,7 @@ func HandlerGetNextWakeupSong(ctx *fasthttp.RequestCtx) {
 	var songID string
 	err = stmt.QueryRow(nextWakeupSongKey).Scan(&songID)
 	if err != nil {
-		err = errors.Wrap(err, "error querying next wakeup song")
+		err = fmt.Errorf("querying next wakeup song: %w", err)
 		log.Error(err)
 		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
 		return
@@ -107,7 +107,7 @@ func HandlerGetNextWakeupSong(ctx *fasthttp.RequestCtx) {
 
 	song, err := spotifyClient.GetTrack(spotify.ID(songID))
 	if err != nil {
-		err = errors.Wrap(err, "error fetching track details from spotify")
+		err = fmt.Errorf("fetching track details from spotify: %w", err)
 		log.Error(err)
 		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
 		return
@@ -121,7 +121,7 @@ func HandlerSetNextWakeupSong(ctx *fasthttp.RequestCtx) {
 	song := spotify.FullTrack{}
 	err := json.Unmarshal(ctx.Request.Body(), &song)
 	if err != nil {
-		err = errors.Wrap(err, "error decoding body")
+		err = fmt.Errorf("decoding body: %w", err)
 		log.Error(err)
 		ctx.Error(err.Error(), fasthttp.StatusBadRequest)
 		return
@@ -139,12 +139,12 @@ func ClearNextWakeupSong(ctx *fasthttp.RequestCtx) error {
 	`,
 	)
 	if err != nil {
-		return errors.Wrap(err, "error preparing next wakeup song clear stmt")
+		return fmt.Errorf("preparing next wakeup song clear stmt: %w", err)
 	}
 	defer stmt.Close()
 	_, err = stmt.Exec(nextWakeupSongKey)
 	if err != nil {
-		return errors.Wrap(err, "error executing next wakeup song clear stmt")
+		return fmt.Errorf("executing next wakeup song clear stmt: %w", err)
 	}
 
 	return nil
@@ -156,7 +156,7 @@ func HandlerSearch(ctx *fasthttp.RequestCtx) {
 
 	results, err := spotifyClient.Search(string(query), spotify.SearchTypeTrack)
 	if err != nil {
-		err = errors.Wrap(err, "error searching spotify")
+		err = fmt.Errorf("searching spotify: %w", err)
 		log.Error(err)
 		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
 		return
@@ -169,7 +169,6 @@ func HandlerSearch(ctx *fasthttp.RequestCtx) {
 func HandlerDevices(ctx *fasthttp.RequestCtx) {
 	devices, err := GetDevices(ctx)
 	if err != nil {
-		err = errors.Wrap(err, "error fetching devices from spotify")
 		log.Error(err)
 		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
 		return
@@ -183,7 +182,7 @@ func GetDevices(ctx *fasthttp.RequestCtx) ([]spotify.PlayerDevice, error) {
 	spotifyClient := requestcontext.Spotify(ctx)
 	devices, err := spotifyClient.PlayerDevices()
 	if err != nil {
-		return nil, errors.Wrap("error fetching devices from spotify")
+		return nil, fmt.Errorf("fetching devices from spotify: %w", err)
 	}
 
 	return devices, nil
