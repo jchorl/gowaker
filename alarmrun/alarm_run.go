@@ -7,6 +7,7 @@ import (
 
 	log "github.com/golang/glog"
 	"github.com/valyala/fasthttp"
+	upstreamspotify "github.com/zmb3/spotify"
 
 	"github.com/jchorl/gowaker/config"
 	"github.com/jchorl/gowaker/spotify"
@@ -46,6 +47,8 @@ func setVolume() error {
 }
 
 func playSong(ctx *fasthttp.RequestCtx) error {
+	var device *upstreamspotify.PlayerDevice
+
 	devices, err := spotify.GetDevices(ctx)
 	if err != nil {
 		return err
@@ -53,9 +56,16 @@ func playSong(ctx *fasthttp.RequestCtx) error {
 
 	for _, d := range devices {
 		if d.Name == config.SpotifyDeviceName {
-			// TODO this
+			device = &d
+			break
 		}
 	}
+
+	if device == nil {
+		return fmt.Errorf("finding device %s: %w", config.SpotifyDeviceName, err)
+	}
+
+	log.Info("found device, should play song")
 
 	return nil
 }

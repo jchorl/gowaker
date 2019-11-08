@@ -75,6 +75,8 @@ func HandlerGetDefaultPlaylist(ctx *fasthttp.RequestCtx) {
 }
 
 func HandlerSetDefaultPlaylist(ctx *fasthttp.RequestCtx) {
+	db := requestcontext.DB(ctx)
+
 	playlist := spotify.SimplePlaylist{}
 	err := json.Unmarshal(ctx.Request.Body(), &playlist)
 	if err != nil {
@@ -84,7 +86,25 @@ func HandlerSetDefaultPlaylist(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	// TODO figure out upsert in sqlite
+	stmt, err := db.Prepare(`
+		insert into spotify_config(key, value) values(?, ?) on conflict(key) do update set value = ?
+	`,
+	)
+	if err != nil {
+		err = fmt.Errorf("preparing default playlist upsert stmt: %w", err)
+		log.Error(err)
+		ctx.Error(err.Error(), fasthttp.StatusBadRequest)
+		return
+	}
+	defer stmt.Close()
+	_, err = stmt.Exec(defaultPlaylistKey, playlist.ID)
+	if err != nil {
+		err = fmt.Errorf("executing default playlist upsert stmt: %w", err)
+		log.Error(err)
+		ctx.Error(err.Error(), fasthttp.StatusBadRequest)
+		return
+	}
+
 	ctx.Response.SetStatusCode(fasthttp.StatusOK)
 	json.NewEncoder(ctx).Encode(playlist)
 }
@@ -124,6 +144,8 @@ func HandlerGetNextWakeupSong(ctx *fasthttp.RequestCtx) {
 }
 
 func HandlerSetNextWakeupSong(ctx *fasthttp.RequestCtx) {
+	db := requestcontext.DB(ctx)
+
 	song := spotify.FullTrack{}
 	err := json.Unmarshal(ctx.Request.Body(), &song)
 	if err != nil {
@@ -133,7 +155,25 @@ func HandlerSetNextWakeupSong(ctx *fasthttp.RequestCtx) {
 		return
 	}
 
-	// TODO figure out upsert in sqlite
+	stmt, err := db.Prepare(`
+		insert into spotify_config(key, value) values(?, ?) on conflict(key) do update set value = ?
+	`,
+	)
+	if err != nil {
+		err = fmt.Errorf("preparing next wakeup song upsert stmt: %w", err)
+		log.Error(err)
+		ctx.Error(err.Error(), fasthttp.StatusBadRequest)
+		return
+	}
+	defer stmt.Close()
+	_, err = stmt.Exec(nextWakeupSongKey, song.ID)
+	if err != nil {
+		err = fmt.Errorf("executing next wakeup song upsert stmt: %w", err)
+		log.Error(err)
+		ctx.Error(err.Error(), fasthttp.StatusBadRequest)
+		return
+	}
+
 	ctx.Response.SetStatusCode(fasthttp.StatusOK)
 	json.NewEncoder(ctx).Encode(song)
 }
@@ -200,13 +240,13 @@ func New() (*spotify.Client, error) {
 	bts, err := ioutil.ReadFile("./spotifycreds.json")
 	// the no error cases is the exception, it means creds are cached
 	if err == nil {
-		var token *oauth2.Token
-		err = json.Unmarshal(bts, token)
+		var token oauth2.Token
+		err = json.Unmarshal(bts, &token)
 		if err != nil {
 			return nil, fmt.Errorf("unmarshaling cached creds, delete ./spotifycreds.json and try again: %w", err)
 		}
 
-		client := auth.NewClient(token)
+		client := auth.NewClient(&token)
 		return &client, nil
 	}
 

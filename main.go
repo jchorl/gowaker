@@ -47,39 +47,32 @@ func initDB() (*sql.DB, error) {
 	return db, nil
 }
 
-func dbMiddleware(handler fasthttp.RequestHandler, db *sql.DB) fasthttp.RequestHandler {
-	return func(ctx *fasthttp.RequestCtx) {
-		requestcontext.SetDB(ctx, db)
-		handler(ctx)
-	}
-}
+type middleware func(fasthttp.RequestHandler) fasthttp.RequestHandler
 
-func schedulerMiddleware(handler fasthttp.RequestHandler, scheduler *gocron.Scheduler) fasthttp.RequestHandler {
-	return func(ctx *fasthttp.RequestCtx) {
-		requestcontext.SetScheduler(ctx, scheduler)
-		handler(ctx)
-	}
-}
-
-func spotifyMiddleware(handler fasthttp.RequestHandler, client *upstreamspotify.Client) fasthttp.RequestHandler {
-	return func(ctx *fasthttp.RequestCtx) {
-		requestcontext.SetSpotify(ctx, client)
-		handler(ctx)
-	}
-}
-
-func middlewareApplier(db *sql.DB, spotifyClient *upstreamspotify.Client, scheduler *gocron.Scheduler) func(fasthttp.RequestHandler) fasthttp.RequestHandler {
+func dbMiddleware(db *sql.DB) middleware {
 	return func(handler fasthttp.RequestHandler) fasthttp.RequestHandler {
-		return dbMiddleware(
-			spotifyMiddleware(
-				schedulerMiddleware(
-					handler,
-					scheduler,
-				),
-				spotifyClient,
-			),
-			db,
-		)
+		return func(ctx *fasthttp.RequestCtx) {
+			requestcontext.SetDB(ctx, db)
+			handler(ctx)
+		}
+	}
+}
+
+func schedulerMiddleware(scheduler *gocron.Scheduler) middleware {
+	return func(handler fasthttp.RequestHandler) fasthttp.RequestHandler {
+		return func(ctx *fasthttp.RequestCtx) {
+			requestcontext.SetScheduler(ctx, scheduler)
+			handler(ctx)
+		}
+	}
+}
+
+func spotifyMiddleware(client *upstreamspotify.Client) middleware {
+	return func(handler fasthttp.RequestHandler) fasthttp.RequestHandler {
+		return func(ctx *fasthttp.RequestCtx) {
+			requestcontext.SetSpotify(ctx, client)
+			handler(ctx)
+		}
 	}
 }
 
@@ -106,25 +99,40 @@ func main() {
 	requestcontext.SetScheduler(&mockCtx, scheduler)
 	err = alarms.RestoreAlarmsFromDB(&mockCtx)
 	if err != nil {
-		log.Fatalf("error restoring db: %s", err)
+		log.Fatalf("restoring db: %s", err)
 	}
 
 	spotifyClient, err := spotify.New()
+	if err != nil {
+		log.Fatalf("creating spotify client: %s", err)
+	}
 
-	middlewares := middlewareApplier(db, spotifyClient, scheduler)
+	middlewares := []middleware{
+		dbMiddleware(db),
+		schedulerMiddleware(scheduler),
+		spotifyMiddleware(spotifyClient),
+	}
+
+	middlewareApplier := func(handler fasthttp.RequestHandler) fasthttp.RequestHandler {
+		wrapped := handler
+		for _, m := range middlewares {
+			wrapped = m(wrapped)
+		}
+		return wrapped
+	}
 
 	r := router.New()
-	r.GET("/alarms", middlewares(alarms.HandlerGet))
-	r.DELETE("/alarms", middlewares(alarms.HandlerDelete))
-	r.POST("/alarms", middlewares(alarms.HandlerPost))
+	r.GET("/alarms", middlewareApplier(alarms.HandlerGet))
+	r.DELETE("/alarms", middlewareApplier(alarms.HandlerDelete))
+	r.POST("/alarms", middlewareApplier(alarms.HandlerPost))
 
-	r.GET("/spotify/playlists", middlewares(spotify.HandlerGetPlaylists))
-	r.GET("/spotify/default_playlist", middlewares(spotify.HandlerGetDefaultPlaylist))
-	r.PUT("/spotify/default_playlist", middlewares(spotify.HandlerSetDefaultPlaylist))
-	r.GET("/spotify/next_wakeup_song", middlewares(spotify.HandlerGetNextWakeupSong))
-	r.PUT("/spotify/next_wakeup_song", middlewares(spotify.HandlerSetNextWakeupSong))
-	r.GET("/spotify/search", middlewares(spotify.HandlerSearch))
-	r.GET("/spotify/devices", middlewares(spotify.HandlerDevices))
+	r.GET("/spotify/playlists", middlewareApplier(spotify.HandlerGetPlaylists))
+	r.GET("/spotify/default_playlist", middlewareApplier(spotify.HandlerGetDefaultPlaylist))
+	r.PUT("/spotify/default_playlist", middlewareApplier(spotify.HandlerSetDefaultPlaylist))
+	r.GET("/spotify/next_wakeup_song", middlewareApplier(spotify.HandlerGetNextWakeupSong))
+	r.PUT("/spotify/next_wakeup_song", middlewareApplier(spotify.HandlerSetNextWakeupSong))
+	r.GET("/spotify/search", middlewareApplier(spotify.HandlerSearch))
+	r.GET("/spotify/devices", middlewareApplier(spotify.HandlerDevices))
 
 	serverDone := make(chan struct{})
 	go func() {
