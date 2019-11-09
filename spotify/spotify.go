@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"math/rand"
 	"os"
 	"strings"
 	"time"
@@ -161,7 +160,7 @@ func getRandomSongFromWakeupPlaylist(ctx *fasthttp.RequestCtx) (*spotify.FullTra
 	}
 
 	tracks := playlist.Tracks.Tracks
-	return &tracks[rand.Intn(len(tracks))].Track, nil
+	return &tracks[requestcontext.Rand(ctx).Intn(len(tracks))].Track, nil
 }
 
 func HandlerSetNextWakeupSong(ctx *fasthttp.RequestCtx) {

@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"math/rand"
 
 	"github.com/jasonlvhit/gocron"
 	"github.com/valyala/fasthttp"
@@ -34,6 +35,15 @@ func spotifyMiddleware(client *upstreamspotify.Client) middleware {
 	return func(handler fasthttp.RequestHandler) fasthttp.RequestHandler {
 		return func(ctx *fasthttp.RequestCtx) {
 			requestcontext.SetSpotify(ctx, client)
+			handler(ctx)
+		}
+	}
+}
+
+func randMiddleware(r *rand.Rand) middleware {
+	return func(handler fasthttp.RequestHandler) fasthttp.RequestHandler {
+		return func(ctx *fasthttp.RequestCtx) {
+			requestcontext.SetRand(ctx, r)
 			handler(ctx)
 		}
 	}

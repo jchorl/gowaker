@@ -2,6 +2,7 @@ package requestcontext
 
 import (
 	"database/sql"
+	"math/rand"
 
 	"github.com/jasonlvhit/gocron"
 	"github.com/valyala/fasthttp"
@@ -46,6 +47,16 @@ func SetSpotify(ctx *fasthttp.RequestCtx, client *spotify.Client) {
 
 func Spotify(ctx *fasthttp.RequestCtx) *spotify.Client {
 	return ctx.UserValue(spotifyKey).(*spotify.Client)
+}
+
+const randKey = "rand"
+
+func SetRand(ctx *fasthttp.RequestCtx, r *rand.Rand) {
+	ctx.SetUserValue(randKey, r)
+}
+
+func Rand(ctx *fasthttp.RequestCtx) *rand.Rand {
+	return ctx.UserValue(randKey).(*rand.Rand)
 }
 
 func Clone(ctx *fasthttp.RequestCtx) *fasthttp.RequestCtx {

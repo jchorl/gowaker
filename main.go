@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"flag"
+	"math/rand"
 	"time"
 
 	"github.com/fasthttp/router"
@@ -14,7 +15,6 @@ import (
 	"github.com/valyala/fasthttp"
 
 	"github.com/jchorl/gowaker/alarms"
-	"github.com/jchorl/gowaker/requestcontext"
 	"github.com/jchorl/gowaker/spotify"
 )
 
@@ -69,19 +69,13 @@ func main() {
 		log.Fatalf("creating spotify client: %s", err)
 	}
 
-	cronCtx := fasthttp.RequestCtx{}
-	requestcontext.SetDB(&cronCtx, db)
-	requestcontext.SetScheduler(&cronCtx, scheduler)
-	requestcontext.SetSpotify(&cronCtx, spotifyClient)
-	err = alarms.RestoreAlarmsFromDB(&cronCtx)
-	if err != nil {
-		log.Fatalf("restoring db: %s", err)
-	}
+	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 
 	middlewares := []middleware{
 		dbMiddleware(db),
 		schedulerMiddleware(scheduler),
 		spotifyMiddleware(spotifyClient),
+		randMiddleware(rng),
 	}
 
 	middlewareApplier := func(handler fasthttp.RequestHandler) fasthttp.RequestHandler {
@@ -91,6 +85,15 @@ func main() {
 		}
 		return wrapped
 	}
+
+	// this is a fun hack that uses the middlewares to create a ctx that we use to restore crons
+	fakeHandler := middlewareApplier(func(ctx *fasthttp.RequestCtx) {
+		err = alarms.RestoreAlarmsFromDB(ctx)
+		if err != nil {
+			log.Fatalf("restoring db: %s", err)
+		}
+	})
+	fakeHandler(&fasthttp.RequestCtx{})
 
 	r := router.New()
 	r.GET("/alarms", middlewareApplier(alarms.HandlerGet))
