@@ -97,7 +97,7 @@ func HandlerSetDefaultPlaylist(ctx *fasthttp.RequestCtx) {
 		return
 	}
 	defer stmt.Close()
-	_, err = stmt.Exec(defaultPlaylistKey, playlist.ID)
+	_, err = stmt.Exec(defaultPlaylistKey, playlist.ID, playlist.ID)
 	if err != nil {
 		err = fmt.Errorf("executing default playlist upsert stmt: %w", err)
 		log.Error(err)
@@ -166,7 +166,7 @@ func HandlerSetNextWakeupSong(ctx *fasthttp.RequestCtx) {
 		return
 	}
 	defer stmt.Close()
-	_, err = stmt.Exec(nextWakeupSongKey, song.ID)
+	_, err = stmt.Exec(nextWakeupSongKey, song.ID, song.ID)
 	if err != nil {
 		err = fmt.Errorf("executing next wakeup song upsert stmt: %w", err)
 		log.Error(err)

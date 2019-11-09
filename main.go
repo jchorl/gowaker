@@ -12,7 +12,6 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/pkg/errors"
 	"github.com/valyala/fasthttp"
-	upstreamspotify "github.com/zmb3/spotify"
 
 	"github.com/jchorl/gowaker/alarms"
 	"github.com/jchorl/gowaker/requestcontext"
@@ -47,35 +46,6 @@ func initDB() (*sql.DB, error) {
 	return db, nil
 }
 
-type middleware func(fasthttp.RequestHandler) fasthttp.RequestHandler
-
-func dbMiddleware(db *sql.DB) middleware {
-	return func(handler fasthttp.RequestHandler) fasthttp.RequestHandler {
-		return func(ctx *fasthttp.RequestCtx) {
-			requestcontext.SetDB(ctx, db)
-			handler(ctx)
-		}
-	}
-}
-
-func schedulerMiddleware(scheduler *gocron.Scheduler) middleware {
-	return func(handler fasthttp.RequestHandler) fasthttp.RequestHandler {
-		return func(ctx *fasthttp.RequestCtx) {
-			requestcontext.SetScheduler(ctx, scheduler)
-			handler(ctx)
-		}
-	}
-}
-
-func spotifyMiddleware(client *upstreamspotify.Client) middleware {
-	return func(handler fasthttp.RequestHandler) fasthttp.RequestHandler {
-		return func(ctx *fasthttp.RequestCtx) {
-			requestcontext.SetSpotify(ctx, client)
-			handler(ctx)
-		}
-	}
-}
-
 func main() {
 	flag.Parse()
 
@@ -94,17 +64,18 @@ func main() {
 		wdClient.Ping("waker", watchdog.Watch_DAILY)
 	})
 
-	mockCtx := fasthttp.RequestCtx{}
-	requestcontext.SetDB(&mockCtx, db)
-	requestcontext.SetScheduler(&mockCtx, scheduler)
-	err = alarms.RestoreAlarmsFromDB(&mockCtx)
-	if err != nil {
-		log.Fatalf("restoring db: %s", err)
-	}
-
 	spotifyClient, err := spotify.New()
 	if err != nil {
 		log.Fatalf("creating spotify client: %s", err)
+	}
+
+	cronCtx := fasthttp.RequestCtx{}
+	requestcontext.SetDB(&cronCtx, db)
+	requestcontext.SetScheduler(&cronCtx, scheduler)
+	requestcontext.SetSpotify(&cronCtx, spotifyClient)
+	err = alarms.RestoreAlarmsFromDB(&cronCtx)
+	if err != nil {
+		log.Fatalf("restoring db: %s", err)
 	}
 
 	middlewares := []middleware{

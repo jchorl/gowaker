@@ -68,6 +68,10 @@ func newAlarm(ctx *fasthttp.RequestCtx, alarm Alarm) (Alarm, error) {
 
 func newAlarmCron(ctx *fasthttp.RequestCtx, alarm Alarm) Alarm {
 	scheduler := requestcontext.Scheduler(ctx)
+
+	// need to clone the request ctx, because fasthttp recycles it after the req
+	clonedCtx := requestcontext.Clone(ctx)
+
 	if !alarm.Repeat {
 		job := scheduler.
 			Every(1).
@@ -79,7 +83,7 @@ func newAlarmCron(ctx *fasthttp.RequestCtx, alarm Alarm) Alarm {
 		job.Tag(jobTag("id", alarm.ID), jobTag("type", alarmCronType))
 
 		job.Do(func() {
-			alarmrun.AlarmRun(ctx)
+			alarmrun.AlarmRun(clonedCtx)
 			scheduler.RemoveByRef(job)
 		})
 		alarm.NextRun = job.NextScheduledTime()

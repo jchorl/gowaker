@@ -47,3 +47,11 @@ func SetSpotify(ctx *fasthttp.RequestCtx, client *spotify.Client) {
 func Spotify(ctx *fasthttp.RequestCtx) *spotify.Client {
 	return ctx.UserValue(spotifyKey).(*spotify.Client)
 }
+
+func Clone(ctx *fasthttp.RequestCtx) *fasthttp.RequestCtx {
+	cl := &fasthttp.RequestCtx{}
+	ctx.VisitUserValues(func(k []byte, v interface{}) {
+		cl.SetUserValueBytes(k, v)
+	})
+	return cl
+}
