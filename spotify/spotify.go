@@ -2,11 +2,15 @@ package spotify
 
 import (
 	"bufio"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"strings"
+	"time"
 
 	log "github.com/golang/glog"
 	"github.com/valyala/fasthttp"
@@ -41,30 +45,9 @@ func HandlerGetPlaylists(ctx *fasthttp.RequestCtx) {
 }
 
 func HandlerGetDefaultPlaylist(ctx *fasthttp.RequestCtx) {
-	spotifyClient := requestcontext.Spotify(ctx)
-	db := requestcontext.DB(ctx)
-
-	stmt, err := db.Prepare("select value from spotify_config where key = ?")
+	playlist, err := getDefaultPlaylist(ctx)
 	if err != nil {
-		err = fmt.Errorf("retrieving default spotify playlist: %w", err)
-		log.Error(err)
-		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
-		return
-	}
-	defer stmt.Close()
-
-	var playlistID string
-	err = stmt.QueryRow(defaultPlaylistKey).Scan(&playlistID)
-	if err != nil {
-		err = fmt.Errorf("querying/scanning default playlist: %w", err)
-		log.Error(err)
-		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
-		return
-	}
-
-	playlist, err := spotifyClient.GetPlaylist(spotify.ID(playlistID))
-	if err != nil {
-		err = fmt.Errorf("fetching playlist details from spotify: %w", err)
+		err = fmt.Errorf("getting default playlist: %w", err)
 		log.Error(err)
 		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
 		return
@@ -72,6 +55,30 @@ func HandlerGetDefaultPlaylist(ctx *fasthttp.RequestCtx) {
 
 	ctx.Response.SetStatusCode(fasthttp.StatusOK)
 	json.NewEncoder(ctx).Encode(playlist)
+}
+
+func getDefaultPlaylist(ctx *fasthttp.RequestCtx) (*spotify.FullPlaylist, error) {
+	spotifyClient := requestcontext.Spotify(ctx)
+	db := requestcontext.DB(ctx)
+
+	stmt, err := db.Prepare("select value from spotify_config where key = ?")
+	if err != nil {
+		return nil, fmt.Errorf("retrieving default spotify playlist: %w", err)
+	}
+	defer stmt.Close()
+
+	var playlistID string
+	err = stmt.QueryRow(defaultPlaylistKey).Scan(&playlistID)
+	if err != nil {
+		return nil, fmt.Errorf("querying/scanning default playlist: %w", err)
+	}
+
+	playlist, err := spotifyClient.GetPlaylist(spotify.ID(playlistID))
+	if err != nil {
+		return nil, fmt.Errorf("fetching playlist details from spotify: %w", err)
+	}
+
+	return playlist, nil
 }
 
 func HandlerSetDefaultPlaylist(ctx *fasthttp.RequestCtx) {
@@ -110,30 +117,8 @@ func HandlerSetDefaultPlaylist(ctx *fasthttp.RequestCtx) {
 }
 
 func HandlerGetNextWakeupSong(ctx *fasthttp.RequestCtx) {
-	spotifyClient := requestcontext.Spotify(ctx)
-	db := requestcontext.DB(ctx)
-
-	stmt, err := db.Prepare("select value from spotify_config where key = ?")
+	song, err := GetNextWakeupSong(ctx)
 	if err != nil {
-		err = fmt.Errorf("retrieving next wakeup song: %w", err)
-		log.Error(err)
-		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
-		return
-	}
-	defer stmt.Close()
-
-	var songID string
-	err = stmt.QueryRow(nextWakeupSongKey).Scan(&songID)
-	if err != nil {
-		err = fmt.Errorf("querying next wakeup song: %w", err)
-		log.Error(err)
-		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
-		return
-	}
-
-	song, err := spotifyClient.GetTrack(spotify.ID(songID))
-	if err != nil {
-		err = fmt.Errorf("fetching track details from spotify: %w", err)
 		log.Error(err)
 		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
 		return
@@ -141,6 +126,42 @@ func HandlerGetNextWakeupSong(ctx *fasthttp.RequestCtx) {
 
 	ctx.Response.SetStatusCode(fasthttp.StatusOK)
 	json.NewEncoder(ctx).Encode(song)
+}
+
+func GetNextWakeupSong(ctx *fasthttp.RequestCtx) (*spotify.FullTrack, error) {
+	spotifyClient := requestcontext.Spotify(ctx)
+	db := requestcontext.DB(ctx)
+
+	stmt, err := db.Prepare("select value from spotify_config where key = ?")
+	if err != nil {
+		return nil, fmt.Errorf("retrieving next wakeup song: %w", err)
+	}
+	defer stmt.Close()
+
+	var songID string
+	err = stmt.QueryRow(nextWakeupSongKey).Scan(&songID)
+	if err == sql.ErrNoRows {
+		return getRandomSongFromWakeupPlaylist(ctx)
+	} else if err != nil {
+		return nil, fmt.Errorf("querying next wakeup song: %w", err)
+	}
+
+	song, err := spotifyClient.GetTrack(spotify.ID(songID))
+	if err != nil {
+		return nil, fmt.Errorf("fetching track details from spotify: %w", err)
+	}
+
+	return song, err
+}
+
+func getRandomSongFromWakeupPlaylist(ctx *fasthttp.RequestCtx) (*spotify.FullTrack, error) {
+	playlist, err := getDefaultPlaylist(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("getting default playlist: %w", err)
+	}
+
+	tracks := playlist.Tracks.Tracks
+	return &tracks[rand.Intn(len(tracks))].Track, nil
 }
 
 func HandlerSetNextWakeupSong(ctx *fasthttp.RequestCtx) {
@@ -232,6 +253,63 @@ func GetDevices(ctx *fasthttp.RequestCtx) ([]spotify.PlayerDevice, error) {
 	}
 
 	return devices, nil
+}
+
+func PlaySong(ctx *fasthttp.RequestCtx, song *spotify.FullTrack, device *spotify.PlayerDevice) error {
+	spotifyClient := requestcontext.Spotify(ctx)
+	err := spotifyClient.PlayOpt(&spotify.PlayOptions{
+		DeviceID: &device.ID,
+		URIs:     []spotify.URI{song.URI},
+	})
+	if err != nil {
+		return fmt.Errorf("spotify playopt: %w", err)
+	}
+
+	return nil
+}
+
+func PauseSong(ctx *fasthttp.RequestCtx) error {
+	spotifyClient := requestcontext.Spotify(ctx)
+	err := spotifyClient.Pause()
+	if err != nil {
+		return fmt.Errorf("spotify pause: %w", err)
+	}
+
+	return nil
+}
+
+func WaitForSong(ctx *fasthttp.RequestCtx) <-chan error {
+	spotifyClient := requestcontext.Spotify(ctx)
+
+	errChan := make(chan error)
+
+	ticker := time.NewTicker(5 * time.Second)
+	go func() {
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-time.After(10 * time.Minute):
+				errChan <- errors.New("timed out polling for spotify song")
+				return
+			case <-ticker.C:
+				currentlyPlaying, err := spotifyClient.PlayerCurrentlyPlaying()
+				if err != nil {
+					errChan <- fmt.Errorf("checking currently playing: %w", err)
+					return
+				}
+
+				progressMs := currentlyPlaying.Progress
+				durationMs := currentlyPlaying.Item.Duration
+				if durationMs-progressMs <= 6000 {
+					errChan <- nil
+					return
+				}
+			}
+		}
+	}()
+
+	return errChan
 }
 
 func New() (*spotify.Client, error) {

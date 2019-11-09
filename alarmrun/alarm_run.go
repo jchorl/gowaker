@@ -65,7 +65,30 @@ func playSong(ctx *fasthttp.RequestCtx) error {
 		return fmt.Errorf("finding device %s: %w", config.SpotifyDeviceName, err)
 	}
 
-	log.Info("found device, should play song")
+	wakeupSong, err := spotify.GetNextWakeupSong(ctx)
+	if err != nil {
+		return fmt.Errorf("getting next wakeup song: %w", err)
+	}
+
+	err = spotify.PlaySong(ctx, wakeupSong, device)
+	if err != nil {
+		return fmt.Errorf("playing wakeup song: %w", err)
+	}
+
+	err = <-spotify.WaitForSong(ctx)
+	if err != nil {
+		return fmt.Errorf("waiting for spotify to finish playing: %w", err)
+	}
+
+	err = spotify.PauseSong(ctx)
+	if err != nil {
+		return fmt.Errorf("pausing song: %w", err)
+	}
+
+	err = spotify.ClearNextWakeupSong(ctx)
+	if err != nil {
+		return fmt.Errorf("clearing wakeup song: %w", err)
+	}
 
 	return nil
 }
