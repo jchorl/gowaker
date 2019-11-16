@@ -3,6 +3,7 @@ module github.com/jchorl/gowaker
 go 1.12
 
 require (
+	github.com/briandowns/openweathermap v0.13.0
 	github.com/fasthttp/router v0.5.0
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/golang/protobuf v1.3.2 // indirect
@@ -15,5 +16,5 @@ require (
 	github.com/zmb3/spotify v0.0.0-20191028153142-869e03dbd8b0
 	golang.org/x/net v0.0.0-20191109021931-daa7c04131f5 // indirect
 	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45
-	google.golang.org/appengine v1.6.5 // indirect
+	google.golang.org/appengine v1.6.5
 )
