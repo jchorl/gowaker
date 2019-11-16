@@ -16,6 +16,7 @@ import (
 
 	"github.com/jchorl/gowaker/alarms"
 	"github.com/jchorl/gowaker/spotify"
+	"github.com/jchorl/gowaker/weather"
 )
 
 func initDB() (*sql.DB, error) {
@@ -46,7 +47,7 @@ func initDB() (*sql.DB, error) {
 	return db, nil
 }
 
-func main() {
+func notMain() {
 	flag.Parse()
 
 	db, err := initDB()
@@ -132,5 +133,14 @@ func main() {
 		log.Fatalf("scheduler crashed")
 	case <-serverDone:
 		log.Fatalf("server crashed")
+	}
+}
+
+func main() {
+	flag.Parse()
+	// TODO use https://github.com/briandowns/openweathermap/issues/78
+	_, err := weather.GetForecastStr()
+	if err != nil {
+		log.Fatalf(err.Error())
 	}
 }

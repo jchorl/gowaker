@@ -16,10 +16,10 @@ import (
 func AlarmRun(ctx *fasthttp.RequestCtx) error {
 	log.Infof("running job at %s", time.Now())
 	err := setVolume()
-	if err != nil {
-		log.Error(err)
-		return err
-	}
+	// if err != nil {
+	// 	log.Error(err)
+	// 	return err
+	// }
 
 	err = playSong(ctx)
 	if err != nil {
