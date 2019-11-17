@@ -7,11 +7,11 @@ import (
 	"github.com/jasonlvhit/gocron"
 	"github.com/valyala/fasthttp"
 	"github.com/zmb3/spotify"
+
+	"github.com/jchorl/gowaker/plugin"
 )
 
-const (
-	dbKey = "db"
-)
+const dbKey = "db"
 
 // fasthttp closes all context objs when the request completes
 // so we wrap it in a struct that does not implement io.Closer :(
@@ -57,6 +57,16 @@ func SetRand(ctx *fasthttp.RequestCtx, r *rand.Rand) {
 
 func Rand(ctx *fasthttp.RequestCtx) *rand.Rand {
 	return ctx.UserValue(randKey).(*rand.Rand)
+}
+
+const pluginsKey = "plugins"
+
+func SetPlugins(ctx *fasthttp.RequestCtx, plugins []plugin.Plugin) {
+	ctx.SetUserValue(pluginsKey, plugins)
+}
+
+func Plugins(ctx *fasthttp.RequestCtx) []plugin.Plugin {
+	return ctx.UserValue(pluginsKey).([]plugin.Plugin)
 }
 
 func Clone(ctx *fasthttp.RequestCtx) *fasthttp.RequestCtx {

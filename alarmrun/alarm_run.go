@@ -10,6 +10,7 @@ import (
 	upstreamspotify "github.com/zmb3/spotify"
 
 	"github.com/jchorl/gowaker/config"
+	"github.com/jchorl/gowaker/requestcontext"
 	"github.com/jchorl/gowaker/spotify"
 )
 
@@ -26,6 +27,14 @@ func AlarmRun(ctx *fasthttp.RequestCtx) error {
 		log.Error(err)
 		return err
 	}
+
+	speechStr, err := generateSpeechStr(ctx)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	log.Infof("TODO: say '%s'", speechStr)
 
 	log.Infof("finished job at %s", time.Now())
 	return nil
@@ -91,4 +100,19 @@ func playSong(ctx *fasthttp.RequestCtx) error {
 	}
 
 	return nil
+}
+
+func generateSpeechStr(ctx *fasthttp.RequestCtx) (string, error) {
+	plugins := requestcontext.Plugins(ctx)
+
+	var fullStr string
+	for _, p := range plugins {
+		pText, err := p.Text()
+		if err != nil {
+			return "", fmt.Errorf("p.Text(): %w", err)
+		}
+		fullStr += pText
+	}
+
+	return fullStr, nil
 }

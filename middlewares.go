@@ -8,6 +8,7 @@ import (
 	"github.com/valyala/fasthttp"
 	upstreamspotify "github.com/zmb3/spotify"
 
+	"github.com/jchorl/gowaker/plugin"
 	"github.com/jchorl/gowaker/requestcontext"
 )
 
@@ -44,6 +45,15 @@ func randMiddleware(r *rand.Rand) middleware {
 	return func(handler fasthttp.RequestHandler) fasthttp.RequestHandler {
 		return func(ctx *fasthttp.RequestCtx) {
 			requestcontext.SetRand(ctx, r)
+			handler(ctx)
+		}
+	}
+}
+
+func pluginsMiddleware(plugins ...plugin.Plugin) middleware {
+	return func(handler fasthttp.RequestHandler) fasthttp.RequestHandler {
+		return func(ctx *fasthttp.RequestCtx) {
+			requestcontext.SetPlugins(ctx, plugins)
 			handler(ctx)
 		}
 	}

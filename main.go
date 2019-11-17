@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"flag"
 	"math/rand"
+	"os"
 	"time"
 
 	"github.com/fasthttp/router"
@@ -15,6 +16,9 @@ import (
 	"github.com/valyala/fasthttp"
 
 	"github.com/jchorl/gowaker/alarms"
+	"github.com/jchorl/gowaker/config"
+	"github.com/jchorl/gowaker/plugin/calendar"
+	"github.com/jchorl/gowaker/plugin/weather"
 	"github.com/jchorl/gowaker/spotify"
 )
 
@@ -71,11 +75,19 @@ func main() {
 
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 
+	weatherPlugin := weather.Weather{
+		APIKey:   os.Getenv("OPENWEATHERMAP_API_KEY"),
+		TempUnit: weather.Celsius,
+		OWMID:    config.OWMID,
+	}
+	calendarPlugin := calendar.Calendar{}
+
 	middlewares := []middleware{
 		dbMiddleware(db),
 		schedulerMiddleware(scheduler),
 		spotifyMiddleware(spotifyClient),
 		randMiddleware(rng),
+		pluginsMiddleware(weatherPlugin, calendarPlugin),
 	}
 
 	middlewareApplier := func(handler fasthttp.RequestHandler) fasthttp.RequestHandler {

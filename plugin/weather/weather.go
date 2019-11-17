@@ -3,25 +3,39 @@ package weather
 import (
 	"fmt"
 	"math"
-	"os"
 
 	owm "github.com/briandowns/openweathermap"
-
-	"github.com/jchorl/gowaker/config"
 )
 
-func Text() (string, error) {
-	w, err := owm.NewForecast("5", "C", "EN", os.Getenv("OPENWEATHERMAP_API_KEY"))
+type TempUnit string
+
+func (t TempUnit) String() string {
+	return string(t)
+}
+
+const (
+	Celsius    TempUnit = "C"
+	Fahrenheit TempUnit = "F"
+)
+
+type Weather struct {
+	APIKey   string
+	TempUnit TempUnit
+	OWMID    int
+}
+
+func (w Weather) Text() (string, error) {
+	o, err := owm.NewForecast("5", w.TempUnit.String(), "EN", w.APIKey)
 	if err != nil {
 		return "", fmt.Errorf("creating owm client: %w", err)
 	}
 
-	err = w.DailyByID(config.OWMID, 1)
+	err = o.DailyByID(w.OWMID, 1)
 	if err != nil {
 		return "", fmt.Errorf("w.DailyByID: %w", err)
 	}
 
-	forecast := w.ForecastWeatherJson.(*owm.Forecast5WeatherData).List[0]
+	forecast := o.ForecastWeatherJson.(*owm.Forecast5WeatherData).List[0]
 
 	return fmt.Sprintf(
 		"Today's forecast is %s with a high of %.0f degrees and a low of %.0f degrees.",
