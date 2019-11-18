@@ -6,8 +6,8 @@ import (
 	"time"
 
 	log "github.com/golang/glog"
+	upstreamspotify "github.com/jchorl/spotify"
 	"github.com/valyala/fasthttp"
-	upstreamspotify "github.com/zmb3/spotify"
 
 	"github.com/jchorl/gowaker/config"
 	"github.com/jchorl/gowaker/requestcontext"

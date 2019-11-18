@@ -1,22 +1,21 @@
 package spotify
 
 import (
-	"bufio"
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
-	"strings"
 	"time"
 
 	log "github.com/golang/glog"
+	"github.com/jchorl/spotify"
 	"github.com/valyala/fasthttp"
-	"github.com/zmb3/spotify"
 	"golang.org/x/oauth2"
 
 	"github.com/jchorl/gowaker/requestcontext"
+	"github.com/jchorl/gowaker/util"
 )
 
 const defaultPlaylistKey = "default_playlist"
@@ -311,44 +310,22 @@ func WaitForSong(ctx *fasthttp.RequestCtx) <-chan error {
 	return errChan
 }
 
-func New() (*spotify.Client, error) {
-	auth := spotify.NewAuthenticator("http://localhost:5000/spotify/auth", requiredScopes...)
-
-	bts, err := ioutil.ReadFile("./spotifycreds.json")
-	// the no error cases is the exception, it means creds are cached
-	if err == nil {
-		var token oauth2.Token
-		err = json.Unmarshal(bts, &token)
-		if err != nil {
-			return nil, fmt.Errorf("unmarshaling cached creds, delete ./spotifycreds.json and try again: %w", err)
-		}
-
-		client := auth.NewClient(&token)
-		return &client, nil
+func New() (spotify.Client, error) {
+	cfg := &oauth2.Config{
+		ClientID:     os.Getenv("SPOTIFY_ID"),
+		ClientSecret: os.Getenv("SPOTIFY_SECRET"),
+		RedirectURL:  "http://localhost:5000/spotify/auth",
+		Scopes:       requiredScopes,
+		Endpoint: oauth2.Endpoint{
+			AuthURL:  spotify.AuthURL,
+			TokenURL: spotify.TokenURL,
+		},
 	}
 
-	log.Infof("reading spotifycreds.json: %s", err)
-
-	url := auth.AuthURL("")
-	fmt.Printf("Visit %s and OAuth\n", url)
-	fmt.Print("Enter code: ")
-	reader := bufio.NewReader(os.Stdin)
-	code, _ := reader.ReadString('\n')
-	token, err := auth.Exchange(strings.TrimSpace(code))
+	httpClient, err := util.GetOauthClient(context.TODO(), cfg, "spotifycreds.json")
 	if err != nil {
-		return nil, fmt.Errorf("getting spotify token: %w", err)
+		return spotify.Client{}, fmt.Errorf("GetOauthClient(): %w", err)
 	}
 
-	encodedToken, err := json.Marshal(&token)
-	if err != nil {
-		return nil, fmt.Errorf("marshaling spotify token: %w", err)
-	}
-
-	err = ioutil.WriteFile("./spotifycreds.json", encodedToken, 0600)
-	if err != nil {
-		return nil, fmt.Errorf("saving spotify token: %w", err)
-	}
-
-	client := auth.NewClient(token)
-	return &client, nil
+	return spotify.New(spotify.WithHTTPClient(httpClient)), nil
 }

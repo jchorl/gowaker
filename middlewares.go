@@ -5,8 +5,8 @@ import (
 	"math/rand"
 
 	"github.com/jasonlvhit/gocron"
+	upstreamspotify "github.com/jchorl/spotify"
 	"github.com/valyala/fasthttp"
-	upstreamspotify "github.com/zmb3/spotify"
 
 	"github.com/jchorl/gowaker/plugin"
 	"github.com/jchorl/gowaker/requestcontext"
@@ -32,7 +32,7 @@ func schedulerMiddleware(scheduler *gocron.Scheduler) middleware {
 	}
 }
 
-func spotifyMiddleware(client *upstreamspotify.Client) middleware {
+func spotifyMiddleware(client upstreamspotify.Client) middleware {
 	return func(handler fasthttp.RequestHandler) fasthttp.RequestHandler {
 		return func(ctx *fasthttp.RequestCtx) {
 			requestcontext.SetSpotify(ctx, client)

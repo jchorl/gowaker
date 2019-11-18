@@ -5,8 +5,8 @@ import (
 	"math/rand"
 
 	"github.com/jasonlvhit/gocron"
+	"github.com/jchorl/spotify"
 	"github.com/valyala/fasthttp"
-	"github.com/zmb3/spotify"
 
 	"github.com/jchorl/gowaker/plugin"
 )
@@ -41,12 +41,12 @@ func Scheduler(ctx *fasthttp.RequestCtx) *gocron.Scheduler {
 
 const spotifyKey = "spotify"
 
-func SetSpotify(ctx *fasthttp.RequestCtx, client *spotify.Client) {
+func SetSpotify(ctx *fasthttp.RequestCtx, client spotify.Client) {
 	ctx.SetUserValue(spotifyKey, client)
 }
 
-func Spotify(ctx *fasthttp.RequestCtx) *spotify.Client {
-	return ctx.UserValue(spotifyKey).(*spotify.Client)
+func Spotify(ctx *fasthttp.RequestCtx) spotify.Client {
+	return ctx.UserValue(spotifyKey).(spotify.Client)
 }
 
 const randKey = "rand"
