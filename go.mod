@@ -4,6 +4,7 @@ go 1.12
 
 require (
 	9fans.net/go v0.0.2 // indirect
+	cloud.google.com/go v0.48.0 // indirect
 	github.com/alecthomas/gometalinter v3.0.0+incompatible // indirect
 	github.com/alecthomas/units v0.0.0-20190924025748-f65c72e2690d // indirect
 	github.com/briandowns/openweathermap v0.13.0
@@ -13,9 +14,10 @@ require (
 	github.com/fatih/motion v1.0.0 // indirect
 	github.com/fatih/structtag v1.1.0 // indirect
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
-	github.com/golang/protobuf v1.3.2 // indirect
+	github.com/golang/groupcache v0.0.0-20191027212112-611e8accdfc9 // indirect
 	github.com/google/shlex v0.0.0-20181106134648-c34317bd91bf // indirect
 	github.com/google/uuid v1.1.1
+	github.com/hashicorp/golang-lru v0.5.3 // indirect
 	github.com/jasonlvhit/gocron v0.0.0-20191021204008-47e27a9e0dc7
 	github.com/jchorl/watchdog v0.0.0-20190211034837-3b422e85f408
 	github.com/josharian/impl v0.0.0-20190715203526-f0d59e96e372 // indirect
@@ -31,11 +33,14 @@ require (
 	github.com/valyala/fasthttp v1.4.0
 	github.com/zmb3/gogetdoc v0.0.0-20190228002656-b37376c5da6a // indirect
 	github.com/zmb3/spotify v0.0.0-20191028153142-869e03dbd8b0
-	golang.org/x/lint v0.0.0-20190930215403-16217165b5de // indirect
-	golang.org/x/net v0.0.0-20191109021931-daa7c04131f5 // indirect
+	go.opencensus.io v0.22.2 // indirect
+	golang.org/x/net v0.0.0-20191116160921-f9c825593386 // indirect
 	golang.org/x/oauth2 v0.0.0-20190604053449-0f29369cfe45
+	golang.org/x/sys v0.0.0-20191115151921-52ab43148777 // indirect
 	golang.org/x/tools v0.0.0-20191116214431-80313e1ba718 // indirect
+	google.golang.org/api v0.14.0 // indirect
 	google.golang.org/appengine v1.6.5
+	google.golang.org/genproto v0.0.0-20191115221424-83cc0476cb11 // indirect
+	google.golang.org/grpc v1.25.1 // indirect
 	gopkg.in/alecthomas/kingpin.v3-unstable v3.0.0-20191105091915-95d230a53780 // indirect
-	honnef.co/go/tools v0.0.1-2019.2.3 // indirect
 )
