@@ -3,11 +3,12 @@ module github.com/jchorl/gowaker
 go 1.12
 
 require (
-	cloud.google.com/go v0.49.0 // indirect
+	cloud.google.com/go v0.49.0
 	github.com/briandowns/openweathermap v0.13.0
 	github.com/fasthttp/router v0.5.0
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/golang/groupcache v0.0.0-20191027212112-611e8accdfc9 // indirect
+	github.com/google/go-cmp v0.3.1 // indirect
 	github.com/google/uuid v1.1.1
 	github.com/jasonlvhit/gocron v0.0.0-20191021204008-47e27a9e0dc7
 	github.com/jchorl/spotify v0.0.0-20191119071725-08b78583c051
@@ -21,6 +22,6 @@ require (
 	golang.org/x/sys v0.0.0-20191120155948-bd437916bb0e // indirect
 	google.golang.org/api v0.14.0
 	google.golang.org/appengine v1.6.5 // indirect
-	google.golang.org/genproto v0.0.0-20191115221424-83cc0476cb11 // indirect
+	google.golang.org/genproto v0.0.0-20191115221424-83cc0476cb11
 	google.golang.org/grpc v1.25.1 // indirect
 )

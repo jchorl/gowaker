@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"math/rand"
 
+	texttospeech "cloud.google.com/go/texttospeech/apiv1"
 	"github.com/jasonlvhit/gocron"
 	"github.com/jchorl/spotify"
 	"github.com/valyala/fasthttp"
@@ -57,6 +58,16 @@ func SetRand(ctx *fasthttp.RequestCtx, r *rand.Rand) {
 
 func Rand(ctx *fasthttp.RequestCtx) *rand.Rand {
 	return ctx.UserValue(randKey).(*rand.Rand)
+}
+
+const speechKey = "speech"
+
+func SetSpeech(ctx *fasthttp.RequestCtx, c *texttospeech.Client) {
+	ctx.SetUserValue(speechKey, c)
+}
+
+func Speech(ctx *fasthttp.RequestCtx) *texttospeech.Client {
+	return ctx.UserValue(speechKey).(*texttospeech.Client)
 }
 
 const pluginsKey = "plugins"

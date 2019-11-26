@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"math/rand"
 
+	texttospeech "cloud.google.com/go/texttospeech/apiv1"
 	"github.com/jasonlvhit/gocron"
 	upstreamspotify "github.com/jchorl/spotify"
 	"github.com/valyala/fasthttp"
@@ -45,6 +46,15 @@ func randMiddleware(r *rand.Rand) middleware {
 	return func(handler fasthttp.RequestHandler) fasthttp.RequestHandler {
 		return func(ctx *fasthttp.RequestCtx) {
 			requestcontext.SetRand(ctx, r)
+			handler(ctx)
+		}
+	}
+}
+
+func speechMiddleware(client *texttospeech.Client) middleware {
+	return func(handler fasthttp.RequestHandler) fasthttp.RequestHandler {
+		return func(ctx *fasthttp.RequestCtx) {
+			requestcontext.SetSpeech(ctx, client)
 			handler(ctx)
 		}
 	}

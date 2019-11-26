@@ -11,6 +11,7 @@ import (
 
 	"github.com/jchorl/gowaker/config"
 	"github.com/jchorl/gowaker/requestcontext"
+	"github.com/jchorl/gowaker/speech"
 	"github.com/jchorl/gowaker/spotify"
 )
 
@@ -34,7 +35,10 @@ func AlarmRun(ctx *fasthttp.RequestCtx) error {
 		return err
 	}
 
-	log.Infof("TODO: say '%s'", speechStr)
+	_, err := speech.GetAudioContent(ctx, "hello world")
+	if err != nil {
+		log.Fatalf("getting audio content: %s", err)
+	}
 
 	log.Infof("finished job at %s", time.Now())
 	return nil

@@ -21,6 +21,7 @@ import (
 	"github.com/jchorl/gowaker/config"
 	"github.com/jchorl/gowaker/plugin/calendar"
 	"github.com/jchorl/gowaker/plugin/weather"
+	"github.com/jchorl/gowaker/speech"
 	"github.com/jchorl/gowaker/spotify"
 )
 
@@ -77,6 +78,11 @@ func main() {
 
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 
+	speechClient, err := speech.New("./service-account-key.json")
+	if err != nil {
+		log.Fatalf("creating speech client: %s", err)
+	}
+
 	weatherPlugin := weather.Weather{
 		APIKey:   os.Getenv("OPENWEATHERMAP_API_KEY"),
 		TempUnit: weather.Celsius,
@@ -97,6 +103,7 @@ func main() {
 		schedulerMiddleware(scheduler),
 		spotifyMiddleware(spotifyClient),
 		randMiddleware(rng),
+		speechMiddleware(speechClient),
 		pluginsMiddleware(weatherPlugin, calendarPlugin),
 	}
 
