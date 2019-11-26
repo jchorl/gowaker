@@ -2,9 +2,11 @@ package main
 
 import (
 	"database/sql"
+	"encoding/csv"
 	"flag"
 	"math/rand"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/fasthttp/router"
@@ -80,7 +82,15 @@ func main() {
 		TempUnit: weather.Celsius,
 		OWMID:    config.OWMID,
 	}
-	calendarPlugin := calendar.Calendar{}
+
+	calendars, err := csv.NewReader(strings.NewReader(config.GoogleCalendars)).Read()
+	if err != nil {
+		log.Fatalf("parsing calendars: %s", err)
+	}
+	calendarPlugin, err := calendar.New(calendars)
+	if err != nil {
+		log.Fatalf("creating calendar plugin: %s", err)
+	}
 
 	middlewares := []middleware{
 		dbMiddleware(db),
