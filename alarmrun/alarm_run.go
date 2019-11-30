@@ -27,22 +27,37 @@ func AlarmRun(ctx *fasthttp.RequestCtx) error {
 		return err
 	}
 
+	speechChan := make(chan []byte)
+	speechErrChan := make(chan error)
+
+	go func() {
+		speechStr, err := generateSpeechStr(ctx)
+		if err != nil {
+			speechErrChan <- fmt.Errorf("generating speech: %s", err)
+			return
+		}
+
+		contents, err := speech.GetAudioContent(ctx, speechStr)
+		if err != nil {
+			speechErrChan <- fmt.Errorf("getting audio content: %s", err)
+			return
+		}
+
+		speechChan <- contents
+	}()
+
 	err = playSong(ctx)
 	if err != nil {
 		log.Error(err)
 		return err
 	}
 
-	speechStr, err := generateSpeechStr(ctx)
-	if err != nil {
-		log.Error("generating speech: %s", err)
+	var contents []byte
+	select {
+	case err = <-speechErrChan:
+		log.Error(err)
 		return err
-	}
-
-	contents, err := speech.GetAudioContent(ctx, speechStr)
-	if err != nil {
-		log.Error("getting audio content: %s", err)
-		return err
+	case contents = <-speechChan:
 	}
 
 	streamer, format, err := wav.Decode(bytes.NewReader(contents))
