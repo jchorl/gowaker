@@ -1,10 +1,14 @@
 package alarmrun
 
 import (
+	"bytes"
 	"fmt"
 	"os/exec"
 	"time"
 
+	"github.com/faiface/beep"
+	"github.com/faiface/beep/speaker"
+	"github.com/faiface/beep/wav"
 	log "github.com/golang/glog"
 	upstreamspotify "github.com/jchorl/spotify"
 	"github.com/valyala/fasthttp"
@@ -19,7 +23,7 @@ func AlarmRun(ctx *fasthttp.RequestCtx) error {
 	log.Infof("running job at %s", time.Now())
 	err := setVolume()
 	if err != nil {
-		log.Error(err)
+		log.Error("setting volume: %s", err)
 		return err
 	}
 
@@ -31,14 +35,29 @@ func AlarmRun(ctx *fasthttp.RequestCtx) error {
 
 	speechStr, err := generateSpeechStr(ctx)
 	if err != nil {
-		log.Error(err)
+		log.Error("generating speech: %s", err)
 		return err
 	}
 
-	_, err := speech.GetAudioContent(ctx, "hello world")
+	contents, err := speech.GetAudioContent(ctx, speechStr)
 	if err != nil {
-		log.Fatalf("getting audio content: %s", err)
+		log.Error("getting audio content: %s", err)
+		return err
 	}
+
+	streamer, format, err := wav.Decode(bytes.NewReader(contents))
+	if err != nil {
+		log.Error("wav decoding: %s", err)
+		return err
+	}
+	defer streamer.Close()
+
+	done := make(chan bool)
+	speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
+	speaker.Play(beep.Seq(streamer, beep.Callback(func() {
+		done <- true
+	})))
+	<-done
 
 	log.Infof("finished job at %s", time.Now())
 	return nil
@@ -117,6 +136,8 @@ func generateSpeechStr(ctx *fasthttp.RequestCtx) (string, error) {
 		}
 		fullStr += pText
 	}
+
+	fullStr += "Have a great day!"
 
 	return fullStr, nil
 }

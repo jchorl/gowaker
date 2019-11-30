@@ -5,6 +5,7 @@ go 1.12
 require (
 	cloud.google.com/go v0.49.0
 	github.com/briandowns/openweathermap v0.13.0
+	github.com/faiface/beep v1.0.2
 	github.com/fasthttp/router v0.5.0
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b
 	github.com/golang/groupcache v0.0.0-20191027212112-611e8accdfc9 // indirect

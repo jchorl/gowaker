@@ -99,7 +99,7 @@ func (c Calendar) Text() (string, error) {
 		return false
 	})
 
-	str := ""
+	str := "Here are the upcoming calendar events for today. "
 	for _, item := range events {
 		if item.Start.DateTime == "" {
 			str += item.Summary + ". "

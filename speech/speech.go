@@ -41,7 +41,7 @@ func GetAudioContent(ctx *fasthttp.RequestCtx, text string) ([]byte, error) {
 		},
 		// Select the type of audio file you want returned.
 		AudioConfig: &texttospeechpb.AudioConfig{
-			AudioEncoding: texttospeechpb.AudioEncoding_MP3,
+			AudioEncoding: texttospeechpb.AudioEncoding_LINEAR16,
 		},
 	}
 
