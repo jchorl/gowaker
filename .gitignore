@@ -1,6 +1,7 @@
 /waker.db
 /secrets.list
 /spotifycreds.json
-/gcaloauthcreds.json
+/gcalconfig.json
 /gcalcreds.json
-/service-account-key.json
+/tts-service-account-key.json
+/gowaker

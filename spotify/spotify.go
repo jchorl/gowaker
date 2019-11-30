@@ -310,7 +310,7 @@ func WaitForSong(ctx *fasthttp.RequestCtx) <-chan error {
 	return errChan
 }
 
-func New() (spotify.Client, error) {
+func New(credFile string) (spotify.Client, error) {
 	cfg := &oauth2.Config{
 		ClientID:     os.Getenv("SPOTIFY_ID"),
 		ClientSecret: os.Getenv("SPOTIFY_SECRET"),
@@ -322,7 +322,7 @@ func New() (spotify.Client, error) {
 		},
 	}
 
-	httpClient, err := util.GetOauthClient(context.TODO(), cfg, "spotifycreds.json")
+	httpClient, err := util.GetOauthClient(context.TODO(), cfg, credFile)
 	if err != nil {
 		return spotify.Client{}, fmt.Errorf("GetOauthClient(): %w", err)
 	}

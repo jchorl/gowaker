@@ -9,14 +9,7 @@ serve:
 		go run . --logtostderr
 
 pi:
-	docker run -it --rm \
-		-v $(PWD):/gowaker \
-		-w /gowaker \
-		-e GOOS=linux \
-		-e GOARCH=arm \
-		-e GOARM=5 \
-		golang:1.13 \
-		go build -o gowaker
+	go build -o gowaker
 
 deploy:
-	scp gowaker waker:
+	rsync -avz --delete --exclude gowaker --exclude waker.db . waker:gowaker

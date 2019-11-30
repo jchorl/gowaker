@@ -20,10 +20,10 @@ type Calendar struct {
 }
 
 // New creates a new calendar client.
-func New(calendars []string) (Calendar, error) {
-	b, err := ioutil.ReadFile("gcaloauthcreds.json")
+func New(calendars []string, oauthConfigFile, oauthCredFile string) (Calendar, error) {
+	b, err := ioutil.ReadFile(oauthConfigFile)
 	if err != nil {
-		return Calendar{}, fmt.Errorf("reading credentials.json: %w", err)
+		return Calendar{}, fmt.Errorf("reading %s: %w", oauthConfigFile, err)
 	}
 
 	config, err := google.ConfigFromJSON(b, calendar.CalendarReadonlyScope)
@@ -31,7 +31,7 @@ func New(calendars []string) (Calendar, error) {
 		return Calendar{}, fmt.Errorf("google.ConfigFromJSON: %w", err)
 	}
 
-	httpClient, err := util.GetOauthClient(context.TODO(), config, "gcalcreds.json")
+	httpClient, err := util.GetOauthClient(context.TODO(), config, oauthCredFile)
 	if err != nil {
 		return Calendar{}, fmt.Errorf("GetOauthClient(): %w", err)
 	}

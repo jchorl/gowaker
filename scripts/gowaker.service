@@ -1,0 +1,14 @@
+[Unit]
+Description=gowaker
+After=network.target
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=5
+User=root
+ExecStart=/home/j/gowaker/gowaker --logtostderr --spotify-cred-file=/home/j/gowaker/spotifycreds.json --gcal-cred-file=/home/j/gowaker/gcalcreds.json --gcal-config-file=/home/j/gowaker/gcalconfig.json --tts-service-account-file=/home/j/gowaker/tts-service-account-key.json
+
+[Install]
+WantedBy=multi-user.target

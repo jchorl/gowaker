@@ -25,6 +25,13 @@ import (
 	"github.com/jchorl/gowaker/spotify"
 )
 
+var (
+	spotifyCredFile       = flag.String("spotify-cred-file", "./spotifycreds.json", "File to cache spotify credentials.")
+	gcalCredFile          = flag.String("gcal-cred-file", "./gcalcreds.json", "File to cache gcal credentials.")
+	gcalConfigFile        = flag.String("gcal-config-file", "./gcalconfig.json", "Oauth config file provided by google.")
+	ttsServiceAccountFile = flag.String("tts-service-account-file", "./tts-service-account-key.json", "Service account file provided by google.")
+)
+
 func initDB() (*sql.DB, error) {
 	db, err := sql.Open("sqlite3", "./waker.db")
 	if err != nil {
@@ -71,14 +78,14 @@ func main() {
 		wdClient.Ping("waker", watchdog.Watch_DAILY)
 	})
 
-	spotifyClient, err := spotify.New()
+	spotifyClient, err := spotify.New(*spotifyCredFile)
 	if err != nil {
 		log.Fatalf("creating spotify client: %s", err)
 	}
 
 	rng := rand.New(rand.NewSource(time.Now().UnixNano()))
 
-	speechClient, err := speech.New("./service-account-key.json")
+	speechClient, err := speech.New(*ttsServiceAccountFile)
 	if err != nil {
 		log.Fatalf("creating speech client: %s", err)
 	}
@@ -93,7 +100,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("parsing calendars: %s", err)
 	}
-	calendarPlugin, err := calendar.New(calendars)
+	calendarPlugin, err := calendar.New(calendars, *gcalConfigFile, *gcalCredFile)
 	if err != nil {
 		log.Fatalf("creating calendar plugin: %s", err)
 	}
