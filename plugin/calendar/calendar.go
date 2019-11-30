@@ -57,7 +57,6 @@ func (c Calendar) Text() (string, error) {
 	}
 
 	start := time.Now()
-	start = start.Add(3 * time.Hour) // TODO revert
 
 	// go to midnight Local time
 	year, month, day := start.Date()
