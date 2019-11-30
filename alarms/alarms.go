@@ -191,7 +191,6 @@ func HandlerGet(ctx *fasthttp.RequestCtx) {
 }
 
 func HandlerDelete(ctx *fasthttp.RequestCtx) {
-	// TODO modify client to send body
 	alarm := Alarm{}
 	err := json.Unmarshal(ctx.Request.Body(), &alarm)
 	if err != nil {

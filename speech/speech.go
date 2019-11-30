@@ -3,18 +3,28 @@ package speech
 import (
 	"context"
 	"fmt"
+	"time"
 
 	texttospeech "cloud.google.com/go/texttospeech/apiv1"
 	"github.com/jchorl/gowaker/requestcontext"
 	"github.com/valyala/fasthttp"
 	"google.golang.org/api/option"
 	texttospeechpb "google.golang.org/genproto/googleapis/cloud/texttospeech/v1"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive"
 )
 
 // New returns a new text-to-speech client
 func New(credentialFile string) (*texttospeech.Client, error) {
 	ctx := context.Background()
-	client, err := texttospeech.NewClient(ctx, option.WithCredentialsFile(credentialFile))
+
+	// clients are long lived, so add keepalive
+	kacp := keepalive.ClientParameters{
+		Time:                10 * time.Second, // send pings every 10 seconds if there is no activity
+		Timeout:             time.Second,      // wait 1 second for ping ack before considering the connection dead
+		PermitWithoutStream: true,             // send pings even without active streams
+	}
+	client, err := texttospeech.NewClient(ctx, option.WithCredentialsFile(credentialFile), option.WithGRPCDialOption(grpc.WithKeepaliveParams(kacp)))
 	if err != nil {
 		return nil, fmt.Errorf("creating text-to-speech client: %w", err)
 	}

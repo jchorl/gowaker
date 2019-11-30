@@ -112,6 +112,7 @@ func main() {
 		randMiddleware(rng),
 		speechMiddleware(speechClient),
 		pluginsMiddleware(weatherPlugin, calendarPlugin),
+		logMiddleware(),
 	}
 
 	middlewareApplier := func(handler fasthttp.RequestHandler) fasthttp.RequestHandler {

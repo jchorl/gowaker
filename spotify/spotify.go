@@ -115,8 +115,12 @@ func HandlerSetDefaultPlaylist(ctx *fasthttp.RequestCtx) {
 }
 
 func HandlerGetNextWakeupSong(ctx *fasthttp.RequestCtx) {
-	song, err := GetNextWakeupSong(ctx)
-	if err != nil {
+	// the client doesn't want a random song, so only return a song if one is set
+	song, err := getNextWakeupSongIfSet(ctx)
+	if err == sql.ErrNoRows {
+		ctx.Error("", fasthttp.StatusNotFound)
+		return
+	} else if err != nil {
 		log.Error(err)
 		ctx.Error(err.Error(), fasthttp.StatusInternalServerError)
 		return
@@ -127,6 +131,17 @@ func HandlerGetNextWakeupSong(ctx *fasthttp.RequestCtx) {
 }
 
 func GetNextWakeupSong(ctx *fasthttp.RequestCtx) (*spotify.FullTrack, error) {
+	song, err := getNextWakeupSongIfSet(ctx)
+	if err != nil && err != sql.ErrNoRows {
+		return nil, fmt.Errorf("querying next wakeup song: %w", err)
+	} else if err == sql.ErrNoRows {
+		return getRandomSongFromWakeupPlaylist(ctx)
+	}
+
+	return song, nil
+}
+
+func getNextWakeupSongIfSet(ctx *fasthttp.RequestCtx) (*spotify.FullTrack, error) {
 	spotifyClient := requestcontext.Spotify(ctx)
 	db := requestcontext.DB(ctx)
 
@@ -138,10 +153,8 @@ func GetNextWakeupSong(ctx *fasthttp.RequestCtx) (*spotify.FullTrack, error) {
 
 	var songID string
 	err = stmt.QueryRow(nextWakeupSongKey).Scan(&songID)
-	if err == sql.ErrNoRows {
-		return getRandomSongFromWakeupPlaylist(ctx)
-	} else if err != nil {
-		return nil, fmt.Errorf("querying next wakeup song: %w", err)
+	if err != nil {
+		return nil, err
 	}
 
 	song, err := spotifyClient.GetTrack(spotify.ID(songID))
@@ -149,7 +162,7 @@ func GetNextWakeupSong(ctx *fasthttp.RequestCtx) (*spotify.FullTrack, error) {
 		return nil, fmt.Errorf("fetching track details from spotify: %w", err)
 	}
 
-	return song, err
+	return song, nil
 }
 
 func getRandomSongFromWakeupPlaylist(ctx *fasthttp.RequestCtx) (*spotify.FullTrack, error) {

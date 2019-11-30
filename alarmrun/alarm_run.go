@@ -109,7 +109,7 @@ func playSong(ctx *fasthttp.RequestCtx) error {
 	}
 
 	if device == nil {
-		return fmt.Errorf("finding device %s: %w", config.SpotifyDeviceName, err)
+		return fmt.Errorf("finding device %s", config.SpotifyDeviceName)
 	}
 
 	wakeupSong, err := spotify.GetNextWakeupSong(ctx)
