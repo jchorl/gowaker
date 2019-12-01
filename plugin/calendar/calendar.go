@@ -106,7 +106,7 @@ func (c Calendar) Text() (string, error) {
 		}
 
 		t, _ := time.Parse(time.RFC3339, item.Start.DateTime)
-		str += item.Summary + " at " + t.Format("15:04") + ". "
+		str += item.Summary + " at " + t.In(time.Local).Format("15:04") + ". "
 	}
 
 	return str, nil
