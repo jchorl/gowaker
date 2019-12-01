@@ -12,78 +12,92 @@ import (
 	"github.com/jchorl/gowaker/plugin"
 )
 
-const dbKey = "db"
+// we hold internal state that no other package can touch.
+// fasthttp closes io.Closers when reqs finish, but our clients
+// tend to be longlived. This pattern avoids them being closed.
+type intCtxKey string
+type intCtx map[intCtxKey]interface{}
 
-// fasthttp closes all context objs when the request completes
-// so we wrap it in a struct that does not implement io.Closer :(
-type dbWrapper struct {
-	db *sql.DB
-}
+const dbKey intCtxKey = "db"
 
 func SetDB(ctx *fasthttp.RequestCtx, db *sql.DB) {
-	wrapped := dbWrapper{db}
-	ctx.SetUserValue(dbKey, wrapped)
+	set(ctx, dbKey, db)
 }
 
 func DB(ctx *fasthttp.RequestCtx) *sql.DB {
-	wrapped := ctx.UserValue(dbKey).(dbWrapper)
-	return wrapped.db
+	return get(ctx, dbKey).(*sql.DB)
 }
 
-const schedulerKey = "scheduler"
+const schedulerKey intCtxKey = "scheduler"
 
 func SetScheduler(ctx *fasthttp.RequestCtx, scheduler *gocron.Scheduler) {
-	ctx.SetUserValue(schedulerKey, scheduler)
+	set(ctx, schedulerKey, scheduler)
 }
 
 func Scheduler(ctx *fasthttp.RequestCtx) *gocron.Scheduler {
-	return ctx.UserValue(schedulerKey).(*gocron.Scheduler)
+	return get(ctx, schedulerKey).(*gocron.Scheduler)
 }
 
-const spotifyKey = "spotify"
+const spotifyKey intCtxKey = "spotify"
 
 func SetSpotify(ctx *fasthttp.RequestCtx, client spotify.Client) {
-	ctx.SetUserValue(spotifyKey, client)
+	set(ctx, spotifyKey, client)
 }
 
 func Spotify(ctx *fasthttp.RequestCtx) spotify.Client {
-	return ctx.UserValue(spotifyKey).(spotify.Client)
+	return get(ctx, spotifyKey).(spotify.Client)
 }
 
 const randKey = "rand"
 
 func SetRand(ctx *fasthttp.RequestCtx, r *rand.Rand) {
-	ctx.SetUserValue(randKey, r)
+	set(ctx, randKey, r)
 }
 
 func Rand(ctx *fasthttp.RequestCtx) *rand.Rand {
-	return ctx.UserValue(randKey).(*rand.Rand)
+	return get(ctx, randKey).(*rand.Rand)
 }
 
 const speechKey = "speech"
 
 func SetSpeech(ctx *fasthttp.RequestCtx, c *texttospeech.Client) {
-	ctx.SetUserValue(speechKey, c)
+	set(ctx, speechKey, c)
 }
 
 func Speech(ctx *fasthttp.RequestCtx) *texttospeech.Client {
-	return ctx.UserValue(speechKey).(*texttospeech.Client)
+	return get(ctx, speechKey).(*texttospeech.Client)
 }
 
 const pluginsKey = "plugins"
 
 func SetPlugins(ctx *fasthttp.RequestCtx, plugins []plugin.Plugin) {
-	ctx.SetUserValue(pluginsKey, plugins)
+	set(ctx, pluginsKey, plugins)
 }
 
 func Plugins(ctx *fasthttp.RequestCtx) []plugin.Plugin {
-	return ctx.UserValue(pluginsKey).([]plugin.Plugin)
+	return get(ctx, pluginsKey).([]plugin.Plugin)
 }
+
+const internalCtxKey = "__gowaker_internal"
 
 func Clone(ctx *fasthttp.RequestCtx) *fasthttp.RequestCtx {
 	cl := &fasthttp.RequestCtx{}
-	ctx.VisitUserValues(func(k []byte, v interface{}) {
-		cl.SetUserValueBytes(k, v)
-	})
+	cl.SetUserValue(internalCtxKey, ctx.UserValue(internalCtxKey))
 	return cl
+}
+
+func set(ctx *fasthttp.RequestCtx, key intCtxKey, value interface{}) {
+	// make sure internal ctx is already on the request
+	intCtxUntyped := ctx.UserValue(internalCtxKey)
+	if intCtxUntyped == nil {
+		intCtxUntyped = intCtx(map[intCtxKey]interface{}{})
+		ctx.SetUserValue(internalCtxKey, intCtxUntyped)
+	}
+
+	c := intCtxUntyped.(intCtx)
+	c[key] = value
+}
+
+func get(ctx *fasthttp.RequestCtx, key intCtxKey) interface{} {
+	return ctx.UserValue(internalCtxKey).(intCtx)[key]
 }
